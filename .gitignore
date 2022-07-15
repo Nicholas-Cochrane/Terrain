@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+Terrain/glad.c
+Terrain/Terrain.layout
+Terrain/Terrain.depend
+Terrain/Terrain.cbp
