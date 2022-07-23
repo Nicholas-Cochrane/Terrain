@@ -15,6 +15,12 @@ Chunk::Chunk(glm::vec3 positionInit, int subdivisions)
 Chunk::~Chunk()
 {
     //dtor
+    if(!VAOclear)
+        glDeleteVertexArrays(1, &VAO);
+    if(!VBOclear)
+        glDeleteBuffers(1, &VBO);
+
+    glDeleteTextures(1, &texture);
 }
 
 void Chunk::draw(Shader& shader)
@@ -82,6 +88,9 @@ void Chunk::setUpBuffers()
         glDeleteVertexArrays(1, &VAO);
     if(!VBOclear)
         glDeleteBuffers(1, &VBO);
+
+    VBOclear = false;
+    VAOclear = false;
 
     //Set up Vertex Buffer
     glGenVertexArrays(1, &VAO);
