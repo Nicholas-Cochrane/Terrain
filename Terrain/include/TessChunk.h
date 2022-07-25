@@ -1,5 +1,6 @@
-#ifndef CHUNK_H
-#define CHUNK_H
+#ifndef TESSCHUNK_H
+#define TESSCHUNK_H
+
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -18,12 +19,12 @@ struct Vertex {
 };
 
 
-class Chunk
+class TessChunk
 {
     public:
-        Chunk(glm::vec3 positionInit, int subdivisions, unsigned int inTexture);
+        TessChunk(glm::vec3 positionInit, int subdivisions, unsigned int inTexture);
         //position from 0,0 with chunk 0,0 being bottom,left aka SE corner
-        virtual ~Chunk();
+        virtual ~TessChunk();
 
         glm::vec3 position;
         void draw(Shader &shader);
@@ -43,4 +44,4 @@ class Chunk
     private:
 };
 
-#endif // CHUNK_H
+#endif // TESSCHUNK_H

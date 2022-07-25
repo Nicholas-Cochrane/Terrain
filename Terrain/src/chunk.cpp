@@ -1,14 +1,14 @@
 #include "chunk.h"
 
-Chunk::Chunk(glm::vec3 positionInit, int subdivisions)
+Chunk::Chunk(glm::vec3 inPosition, int subdivisions, unsigned int inTexture)
 {
     //ctor
-    position = positionInit;
+    position = inPosition;
     subdivs = subdivisions;
     heights = std::vector<float>(subdivisions*subdivisions + 1, 0.0f);
     setUpVertices();
     setUpBuffers();
-    texture = loadTexture("textures/grass.png", GL_RGB);
+    texture = inTexture;
 
 }
 
@@ -47,36 +47,35 @@ void Chunk::setUpVertices()
             //std::cout << x << ',' << z << std::endl;
             //tri 1
             //bottom left (0,0) (x,z)
-            tempVertex.posCoords = glm::vec3(x,heights.at(x*(subdivs-1) + z),z);
+            tempVertex.posCoords = glm::vec3(x,heights.at(x*(subdivs-1) + z),-z);
             tempVertex.texCoords = glm::vec2(0.0f, 0.0f);
             vertices.push_back(tempVertex);
 
-            //top left (0,1)
-            tempVertex.posCoords = glm::vec3(x,heights.at(x*(subdivs-1) + (z+1)),z+1);
+            //top right (1,-1)
+            tempVertex.posCoords = glm::vec3((x+1),heights.at((x+1)*(subdivs-1) + (z+1)),-z-1);
+            tempVertex.texCoords = glm::vec2(1.0f, 1.0f);
+            vertices.push_back(tempVertex);
+
+            //top left (0,-1)
+            tempVertex.posCoords = glm::vec3(x,heights.at(x*(subdivs-1) + (z+1)),-z-1);
             tempVertex.texCoords = glm::vec2(0.0f, 1.0f);
             vertices.push_back(tempVertex);
 
-            //top right (1,1)
-            tempVertex.posCoords = glm::vec3((x+1),heights.at((x+1)*(subdivs-1) + (z+1)),z+1);
-            tempVertex.texCoords = glm::vec2(1.0f, 1.0f);
-            vertices.push_back(tempVertex);
-
             //tri 2
-            //top right (1,1)
-            tempVertex.posCoords = glm::vec3((x+1),heights.at((x+1)*(subdivs-1) + (z+1)),z+1);
+            //top right (1,-1)
+            tempVertex.posCoords = glm::vec3((x+1),heights.at((x+1)*(subdivs-1) + (z+1)),-z-1);
             tempVertex.texCoords = glm::vec2(1.0f, 1.0f);
             vertices.push_back(tempVertex);
 
-            //bottom right (1,0)
-            tempVertex.posCoords = glm::vec3((x+1),heights.at((x+1)*(subdivs-1) + z),z);
-            tempVertex.texCoords = glm::vec2(1.0f, 0.0f);
-            vertices.push_back(tempVertex);
-
-            //bottom left (0,0)
-            tempVertex.posCoords = glm::vec3(x,heights.at(x*(subdivs-1) + z),z);
+            //bottom left (0,-0)
+            tempVertex.posCoords = glm::vec3(x,heights.at(x*(subdivs-1) + z),-z);
             tempVertex.texCoords = glm::vec2(0.0f, 0.0f);
             vertices.push_back(tempVertex);
 
+            //bottom right (1,0)
+            tempVertex.posCoords = glm::vec3((x+1),heights.at((x+1)*(subdivs-1) + z),-z);
+            tempVertex.texCoords = glm::vec2(1.0f, 0.0f);
+            vertices.push_back(tempVertex);
         }
     }
 }
@@ -110,33 +109,3 @@ void Chunk::setUpBuffers()
 
     glBindVertexArray(0);
 }
-
- unsigned int Chunk::loadTexture(char const* filepath, GLint formatColor, GLint wrappingParam){
-            //NOTE wrappingParam defaults to GL_REPEAT due to first declaration
-            unsigned int textureID;
-            glGenTextures(1, &textureID);
-            glBindTexture(GL_TEXTURE_2D, textureID);
-            // set texture wrapping
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrappingParam);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrappingParam);
-            // set texture filtering
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-            //load with stbi
-            int texWidth, texHeight, nrChannels;
-            unsigned char *texdData = stbi_load(filepath, &texWidth, &texHeight, &nrChannels, 0);
-            stbi_set_flip_vertically_on_load(true);  // make bottom of image 0.0
-            if(texdData){
-                //load data into texture
-                glTexImage2D(GL_TEXTURE_2D, 0, formatColor, texWidth, texHeight, 0, formatColor, GL_UNSIGNED_BYTE, texdData);
-                glGenerateMipmap(GL_TEXTURE_2D);
-            }
-            else
-            {
-               std::cout << "ERROR::TEXTURE_FAILED_TO_LOAD" << std::endl;
-            }
-            stbi_image_free(texdData);// free data
-
-            return textureID;
-        }

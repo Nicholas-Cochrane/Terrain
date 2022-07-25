@@ -14,7 +14,8 @@
 
 #include "include/shader_s.h"
 #include "include/camera.h"
-#include "include/chunk.h"
+//#include "include/chunk.h"
+#include "include/TessChunk.h"
 #define GLFW_DLL
 
 
@@ -53,8 +54,8 @@ int main()
     // glfw: initialize and configure
     // ------------------------------
     glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     //glfwWindowHint(GLFW_MAXIMIZED , GL_TRUE);//Maximize window
 
@@ -100,105 +101,31 @@ int main()
     //---------------------
     Shader mainShader("shaders/vertex_shader_projection.vs","shaders/frag_shader_texture.fs");
 
-
-    // Set up Vertex Data and buffers
-    //--------------------------------
-    // Set up vertices array
-    float vertices[] = {
-    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-
-    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-    };
-
-    glm::vec3 cubePositions[] = {
-        glm::vec3( 0.0f,  0.0f,  0.0f),
-        glm::vec3( 2.0f,  5.0f, -15.0f),
-        glm::vec3(-1.5f, -2.2f, -2.5f),
-        glm::vec3(-3.8f, -2.0f, -12.3f),
-        glm::vec3( 2.4f, -0.4f, -3.5f),
-        glm::vec3(-1.7f,  3.0f, -7.5f),
-        glm::vec3( 1.3f, -2.0f, -2.5f),
-        glm::vec3( 1.5f,  2.0f, -2.5f),
-        glm::vec3( 1.5f,  0.2f, -1.5f),
-        glm::vec3(-1.3f,  1.0f, -1.5f)
-    };
-
-    //Set up Vertex Buffer
-    unsigned int VBO, VAO; // Vertex Buffer Object, Vertex Array Object, Element Buffer Object
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    //glGenBuffers(1, &EBO);
-
-    glBindVertexArray(VAO); // bind VAO
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);// bind VBO
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); // Load vertices in to buffer
-
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    // texture coord attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    //glBindBuffer(GL_ARRAY_BUFFER, 0); // set current array buffer to 0
-    //glBindVertexArray(0); // Unbind vertex array
-    //NOTE: Do NOT unbind the EBO while a VAO is active as the bound element buffer object IS stored in the VAO
-
     //SET DRAW MODE TO WIREFRAME
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     // Enable Depth buffer
     glEnable(GL_DEPTH_TEST);
 
+    // Enable Back Face Culling
+    glEnable(GL_CULL_FACE);
+
     // Texture setup and loading
     //---------------------------
-    unsigned int texture1 = loadTexture("textures/grass.png", GL_RGB);
+    unsigned int texture1 = loadTexture("textures/uv.png", GL_RGB);
 
     //Set uniform to sampler
     mainShader.use();
     mainShader.setInt("texture1",0);
 
+    //Object Creation
+    //----------------
     //create chunks
-    Chunk chunk(glm::vec3(0.0f,0.0f,0.0f), 3000);
+    TessChunk chunk(glm::vec3(0.0f,0.0f,0.0f), 1000, texture1);
+    glPatchParameteri(GL_PATCH_VERTICES, 4); // set up patches for Tessellation
+
+
+    std::cout << glGetString(GL_VERSION) << std::endl;
 
     // render loop
     // -------------------------------------------------------------------------------------------------
@@ -230,19 +157,6 @@ int main()
 
             //Model -> Global
             // Begin Draw
-            /*glBindVertexArray(VAO);
-            for(unsigned int i = 0; i < 10; i++)
-            {
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, cubePositions[i]);
-            float angle = 20.0f * i;
-
-            model = glm::rotate(model, (float)glfwGetTime() * glm::radians(angle), glm::vec3(0.5f, 1.0f, 0.0f));
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-
-            mainShader.setMat4("model", model);
-            }*/
-
 
             chunk.draw(mainShader);
 
@@ -261,9 +175,6 @@ int main()
         glfwPollEvents();
     }
 
-    // De-allocate all GL resources
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
@@ -296,7 +207,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     curr_scr_width = width;
     curr_scr_height = height;
     glViewport(0, 0, width, height);
-    std::cout << width << "X" << height << std::endl;
 }
 
 // glfw: whenever the mouse moves, this callback is called
@@ -342,9 +252,9 @@ unsigned int loadTexture(char const* filepath, GLint formatColor, GLint wrapping
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     //load with stbi
+    stbi_set_flip_vertically_on_load(true);  // make bottom of image 0.0
     int texWidth, texHeight, nrChannels;
     unsigned char *texdData = stbi_load(filepath, &texWidth, &texHeight, &nrChannels, 0);
-    stbi_set_flip_vertically_on_load(true);  // make bottom of image 0.0
     if(texdData){
         //load data into texture
         glTexImage2D(GL_TEXTURE_2D, 0, formatColor, texWidth, texHeight, 0, formatColor, GL_UNSIGNED_BYTE, texdData);
