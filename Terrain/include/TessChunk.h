@@ -22,18 +22,20 @@ struct Vertex {
 class TessChunk
 {
     public:
-        TessChunk(glm::vec3 positionInit, int subdivisions, unsigned int inTexture);
-        //position from 0,0 with chunk 0,0 being bottom,left aka SE corner
+        TessChunk(glm::vec3 inPosition, int inWidth, unsigned int inTexture, unsigned int inheightMapTexture, glm::vec2 inHeightMapUV, float inHeightMapUVScale);
         virtual ~TessChunk();
 
-        glm::vec3 position;
+        glm::vec3 position; //position from 0,0 with chunk 0,0 being bottom,left aka SE corner
         void draw(Shader &shader);
 
 
     protected:
-        int subdivs; //subdivisions
-        std::vector<float> heights;
+        int width;
         std::vector<Vertex> vertices;
+
+        unsigned int heightMap;
+        glm::vec2 heightMapUV;
+        float heightMapUVScale;
 
         unsigned int texture;
         bool VAOclear, VBOclear = true;

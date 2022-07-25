@@ -11,6 +11,7 @@
 #include <iostream>
 #include <string>
 #include <math.h>
+#include <vector>
 
 #include "include/shader_s.h"
 #include "include/camera.h"
@@ -99,10 +100,11 @@ int main()
 
     // Shader compilation
     //---------------------
-    Shader mainShader("shaders/vertex_shader_projection.vs","shaders/frag_shader_texture.fs");
+    Shader tessShader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
 
     //SET DRAW MODE TO WIREFRAME
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glPointSize(10.0f);
 
     // Enable Depth buffer
     glEnable(GL_DEPTH_TEST);
@@ -113,16 +115,31 @@ int main()
     // Texture setup and loading
     //---------------------------
     unsigned int texture1 = loadTexture("textures/uv.png", GL_RGB);
+    unsigned int heightMap = loadTexture("textures/0.01344305976942091 (4130) (110km) square.png", GL_RGBA, GL_CLAMP_TO_EDGE);
 
     //Set uniform to sampler
-    mainShader.use();
-    mainShader.setInt("texture1",0);
+    tessShader.use();
+    //tessShader.setInt("texture1",0);
+    tessShader.setInt("heightMap", 0);
 
     //Object Creation
     //----------------
     //create chunks
-    TessChunk chunk(glm::vec3(0.0f,0.0f,0.0f), 1000, texture1);
-    glPatchParameteri(GL_PATCH_VERTICES, 4); // set up patches for Tessellation
+    //TessChunk chunk(glm::vec3(0.0f,0.0f,0.0f), 64, texture1, heightMap, glm::vec2(0.0f, 0.0f), 1.0f);
+    std::vector<TessChunk*> chunkList;
+    const int divisions = 40;
+    for(int x = 0; x < divisions; x++){
+        for(int z = 0; z < divisions; z++){// note: -z is forward in coord space
+            chunkList.push_back(new TessChunk(glm::vec3(x * 64.0f ,0.0f,-z * 64.0f)
+                                              , 64
+                                              , texture1, heightMap
+                                              , glm::vec2( (1.0f/divisions) * x
+                                                          , (1.0f/divisions) * z )
+                                              , (1.0f/divisions)));
+        }
+    }
+
+    //chunkList.push_back(new TessChunk(glm::vec3(0.0f,0.0f,0.0f), 64, texture1, heightMap, glm::vec2(0.0f, 0.0f), 1.0f));
 
 
     std::cout << glGetString(GL_VERSION) << std::endl;
@@ -147,27 +164,29 @@ int main()
         { // if window is minimized do not render (Rendering while at resolution 0x0 cause glm::matix_clip_space.inl assertion to fail)
 
             //glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
-            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+            glClearColor(0.207f, 0.318f, 0.361f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // bind textures
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, texture1);
-            mainShader.use();
+            tessShader.use();
 
             //Model -> Global
             // Begin Draw
 
-            chunk.draw(mainShader);
-
+            //chunk.draw(tessShader);
+            for(int i = 0; i < chunkList.size(); i++){
+                chunkList.at(i)->draw(tessShader);
+            }
 
             //Global -> view
             glm::mat4 view = camera.GetViewMatrix();
-            mainShader.setMat4("view", view);
+            tessShader.setMat4("view", view);
 
             //View -> Projection
             glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), 0.1f, 5000.0f);
-            mainShader.setMat4("projection", projection);
+            tessShader.setMat4("projection", projection);
         }
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -197,6 +216,9 @@ void processInput(GLFWwindow *window)
         camera.ProcessKeyboard(LEFT, deltaTime);;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        std::cout << camera.Position.x << ',' << camera.Position.y << ',' << camera.Position.z << std::endl;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes

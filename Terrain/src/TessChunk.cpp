@@ -1,11 +1,14 @@
 #include "TessChunk.h"
 
-TessChunk::TessChunk(glm::vec3 inPosition, int subdivisions, unsigned int inTexture)
+TessChunk::TessChunk(glm::vec3 inPosition, int inWidth, unsigned int inTexture, unsigned int inheightMapTexture, glm::vec2 inHeightMapUV, float inHeightMapUVScale)
 {
     //ctor
     position = inPosition;
-    subdivs = subdivisions;
-    heights = std::vector<float>(subdivisions*subdivisions + 1, 0.0f);
+    width = inWidth;
+    heightMap = inheightMapTexture;
+    heightMapUV = inHeightMapUV;
+    heightMapUVScale = inHeightMapUVScale;
+    glPatchParameteri(GL_PATCH_VERTICES, 4); // set up patches for Tessellation
     setUpVertices();
     setUpBuffers();
     texture = inTexture;
@@ -27,16 +30,17 @@ void TessChunk::draw(Shader& shader)
 {
     shader.use();
 
-    shader.setInt("texture1",0); // set uniform to sampler
+    shader.setInt("heightMap", 0); // set uniform to sampler
 
     glActiveTexture(GL_TEXTURE0); // set sampler to texture
-    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindTexture(GL_TEXTURE_2D, heightMap);
 
      glBindVertexArray(VAO);
      glm::mat4 model = glm::mat4(1.0f);
+     model = glm::translate(model, position);
      shader.setMat4("model", model);
 
-     glDrawArrays(GL_PATCHES, 0, 4*subdivs*subdivs);
+     glDrawArrays(GL_PATCHES, 0, 4);
 
 }
 
@@ -46,22 +50,22 @@ void TessChunk::setUpVertices()
     //Create Chunk Patch
     //bottom left (0,0)
     tempVertex.posCoords = glm::vec3(0.0f, 0.0f, 0.0f);
-    tempVertex.texCoords = glm::vec2(0.0f, 0.0f);
+    tempVertex.texCoords = heightMapUV;
     vertices.push_back(tempVertex);
 
     //bottom right (1,0)
-    tempVertex.posCoords = glm::vec3(subdivs * 1.0f , 0.0f, 0.0f);
-    tempVertex.texCoords = glm::vec2(1.0f, 0.0f);
+    tempVertex.posCoords = glm::vec3(width * 1.0f , 0.0f, 0.0f);
+    tempVertex.texCoords = heightMapUV + glm::vec2(heightMapUVScale, 0.0f);
     vertices.push_back(tempVertex);
 
         //top left (0,1)
-    tempVertex.posCoords = glm::vec3(0.0f, 0.0f, subdivs * -1.0f); //-z is north
-    tempVertex.texCoords = glm::vec2(0.0f, 1.0f);
+    tempVertex.posCoords = glm::vec3(0.0f, 0.0f, width * -1.0f); //-z is north
+    tempVertex.texCoords = heightMapUV + glm::vec2(0.0f, heightMapUVScale);
     vertices.push_back(tempVertex);
 
     //top right (1,1)
-    tempVertex.posCoords = glm::vec3(subdivs * 1.0f, 0.0f, subdivs * -1.0f); //-z is north
-    tempVertex.texCoords = glm::vec2(1.0f, 1.0f);
+    tempVertex.posCoords = glm::vec3(width * 1.0f, 0.0f, width * -1.0f); //-z is north
+    tempVertex.texCoords =  heightMapUV +glm::vec2(heightMapUVScale, heightMapUVScale);
     vertices.push_back(tempVertex);
 
 }
