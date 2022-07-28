@@ -4,7 +4,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_glfw.h"
+#include "imgui/imgui_impl_opengl3.h"
 #include "include/stb_image.h"
 
 
@@ -41,12 +43,17 @@ Camera camera(glm::vec3(0.0f, 2.0f, 3.0f));
 float mouseLastX = SCR_WIDTH / 2.0f;
 float mouseLastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
+bool captureMouse = false;
+bool ctrlKeyDown = false; //to allow ctrl to toggle
 
 
 
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+float lastSec = 0.0f;
+int frameNumber = 0;
+int FPS = 0;
 
 //main
 //---------------------------------------------------------------------------------------------------
@@ -82,6 +89,7 @@ int main()
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);// tell GLFW to capture our mouse
+    captureMouse = true;
     glfwSetWindowPos(window,
         area_x + area_width / 2 - area_width / 2,
         (area_y + area_height / 2 - area_height / 2)+25); // +25 lowers window 25px to account for size of windows title bar
@@ -103,7 +111,7 @@ int main()
     Shader tessShader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
 
     //SET DRAW MODE TO WIREFRAME
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glPointSize(10.0f);
 
     // Enable Depth buffer
@@ -144,6 +152,15 @@ int main()
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
+    //imgui
+    //-----
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 410");
+
     // render loop
     // -------------------------------------------------------------------------------------------------
     while (!glfwWindowShouldClose(window))
@@ -152,6 +169,15 @@ int main()
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+
+        frameNumber++;
+        // If a second has passed.
+        if ( currentFrame - lastSec >= 1.0 )
+            {
+                lastSec = currentFrame;
+                FPS = frameNumber;
+                frameNumber = 0;
+            }
 
         // input
         // -----
@@ -166,6 +192,11 @@ int main()
             //glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
             glClearColor(0.207f, 0.318f, 0.361f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            //set up new frame for ImGui
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
 
             // bind textures
             glActiveTexture(GL_TEXTURE0);
@@ -187,6 +218,25 @@ int main()
             //View -> Projection
             glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), 0.1f, 5000.0f);
             tessShader.setMat4("projection", projection);
+
+            //Create ImGui windows
+            //--------------------
+            ImGui::Begin("Pos");
+            std::string positionStr = "X:" + std::to_string(camera.Position.x);
+            ImGui::Text(positionStr.c_str());
+            positionStr = "Y:" + std::to_string(camera.Position.y);
+            ImGui::Text(positionStr.c_str());
+            positionStr = "Z:" + std::to_string(camera.Position.z);
+            ImGui::Text(positionStr.c_str());
+            positionStr = "FPS:" + std::to_string(FPS);
+            ImGui::Text(positionStr.c_str());
+            positionStr = "Pitch:" + std::to_string(camera.Pitch);
+            ImGui::Text(positionStr.c_str());
+            ImGui::End();
+
+            //render ImGui
+            ImGui::Render();
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -194,6 +244,12 @@ int main()
         glfwPollEvents();
     }
 
+
+    // ImGui: Terminate
+    //-----------------
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
@@ -217,8 +273,23 @@ void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
 
+    if(glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
+        if(!ctrlKeyDown){// if this is the fist frame ctrl is pressed
+            ctrlKeyDown = true;
+            if(captureMouse){ // if mouse is currently being captured toggle
+                captureMouse = false;
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);// tell GLFW to STOP capturing our mouse
+            }else{
+                captureMouse = true;
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);// tell GLFW to capture mouse
+            }
+        }
+    }else{ // if key is not currenlty pressed reset
+        ctrlKeyDown = false;
+    }
+
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-        std::cout << camera.Position.x << ',' << camera.Position.y << ',' << camera.Position.z << std::endl;
+        std::cout << deltaTime << std::endl;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -235,23 +306,25 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 // -------------------------------------------------------
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
-    float xpos = static_cast<float>(xposIn);
-    float ypos = static_cast<float>(yposIn);
+    if(captureMouse){ // only run if mouse is being t (ImGui does this in it's own func for menues)
+        float xpos = static_cast<float>(xposIn);
+        float ypos = static_cast<float>(yposIn);
 
-    if (firstMouse)
-    {
+        if (firstMouse)
+        {
+            mouseLastX = xpos;
+            mouseLastY = ypos;
+            firstMouse = false;
+        }
+
+        float xoffset = xpos - mouseLastX;
+        float yoffset = mouseLastY - ypos; // reversed since y-coordinates go from bottom to top
+
         mouseLastX = xpos;
         mouseLastY = ypos;
-        firstMouse = false;
+
+        camera.ProcessMouseMovement(xoffset, yoffset);
     }
-
-    float xoffset = xpos - mouseLastX;
-    float yoffset = mouseLastY - ypos; // reversed since y-coordinates go from bottom to top
-
-    mouseLastX = xpos;
-    mouseLastY = ypos;
-
-    camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
