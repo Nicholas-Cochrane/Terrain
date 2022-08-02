@@ -14,9 +14,14 @@ in vec2 TextureCoord[];
 
 // send to Fragment Shader for coloring
 out float Height;
+out float HeightScale;
+out vec2 TexCoords;
+
+float HEIGHT_SCALE = 93.0;
 
 void main()
 {
+
     // get patch coordinate
     float u = gl_TessCoord.x;
     float v = gl_TessCoord.y;
@@ -32,9 +37,10 @@ void main()
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
     vec2 texCoord = (t1 - t0) * v + t0;
+	TexCoords = texCoord;
 
     // lookup texel at patch coordinate for height and scale + shift as desired
-    Height = texture(heightMap, texCoord).r * 93.0f - 16.0;
+    Height = texture(heightMap, texCoord).r * HEIGHT_SCALE - 16.0;
 
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
@@ -46,7 +52,7 @@ void main()
     // compute patch surface normal
     vec4 uVec = p01 - p00;
     vec4 vVec = p10 - p00;
-    vec4 normal = normalize( vec4(cross(vVec.xyz, uVec.xyz), 0) );
+    vec4 normal = normalize( vec4(cross(vVec.xyz, uVec.xyz), 0) ); // inital normal before tessellation
 
     // bilinearly interpolate position coordinate across patch
     vec4 p0 = (p01 - p00) * u + p00;
@@ -55,6 +61,7 @@ void main()
 
     // displace point along normal
     p -= normal * Height;
+	HeightScale = HEIGHT_SCALE;
 
     // ----------------------------------------------------------------------
     // output patch point position in clip space

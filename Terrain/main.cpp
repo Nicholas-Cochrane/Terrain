@@ -141,7 +141,7 @@ int main()
     //create chunks
     //TessChunk chunk(glm::vec3(0.0f,0.0f,0.0f), 64, texture1, heightMap, glm::vec2(0.0f, 0.0f), 1.0f);
     std::vector<TessChunk*> chunkList;
-    const int patchsPerEdge = 5;
+    const int patchsPerEdge = 20;
     const int divisions = 40/patchsPerEdge;
     const float width = 64.0f*patchsPerEdge;
     for(int x = 0; x < divisions; x++){
@@ -235,7 +235,7 @@ int main()
             tessShader.setMat4("view", view);
 
             //View -> Projection
-            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), 0.1f, 5000.0f);
+            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), 0.1f, 10000.0f);
             tessShader.setMat4("projection", projection);
 
             //Create ImGui windows

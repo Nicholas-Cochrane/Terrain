@@ -52,6 +52,7 @@ void TessChunk::draw(Shader& shader)
 void TessChunk::setUpVertices()
 {
     Vertex tempVertex;
+    vertices.reserve(patchesPerEdge*patchesPerEdge * 4 + 1);// expand vector to expected size +1 to avoid unneeded resizes.
     for(int x = 0; x < patchesPerEdge; x++){
         for(int z = 0; z < patchesPerEdge; z++){// note: -z is forward in coord space
             //Create Chunk Patch
