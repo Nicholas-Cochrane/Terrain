@@ -50,7 +50,7 @@ public:
             vertexCode   = vShaderStream.str();
             fragmentCode = fShaderStream.str();
 
-            if(tessCtrlPath && tessEvalPath){ // if shader has Tessellation shaders
+            if(tessCtrlPath != NULL && tessEvalPath != NULL){ // if shader has Tessellation shaders
                 // open files
                 tessCtrlFile.open(tessCtrlPath);
                 tessEvalFile.open(tessEvalPath);
@@ -74,7 +74,7 @@ public:
         const char* fShaderCode = fragmentCode.c_str();
         const char* tcShaderCode = NULL;
         const char* teShaderCode = NULL;
-        if(tessCtrlPath && tessEvalPath){
+        if(tessCtrlPath != NULL && tessEvalPath != NULL){
             tcShaderCode = tessCtrlCode.c_str();
             teShaderCode = tessEvalCode.c_str();
         }
@@ -92,7 +92,7 @@ public:
         glCompileShader(fragment);
         checkCompileErrors(fragment, "FRAGMENT");
         // Tessellation Shader
-        if(tessCtrlPath && tessEvalPath){
+        if(tessCtrlPath != NULL && tessEvalPath != NULL){
             tessControl = glCreateShader(GL_TESS_CONTROL_SHADER);
             glShaderSource(tessControl, 1, &tcShaderCode, NULL);
             glCompileShader(tessControl);

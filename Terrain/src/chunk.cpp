@@ -34,6 +34,7 @@ void Chunk::draw(Shader& shader)
 
      glBindVertexArray(VAO);
      glm::mat4 model = glm::mat4(1.0f);
+     model = glm::translate(model, position);
      shader.setMat4("model", model);
      glDrawArrays(GL_TRIANGLES, 0, subdivs * subdivs * 6);
 

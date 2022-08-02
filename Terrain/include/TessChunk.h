@@ -22,7 +22,7 @@ struct Vertex {
 class TessChunk
 {
     public:
-        TessChunk(glm::vec3 inPosition, int inWidth, unsigned int inTexture, unsigned int inheightMapTexture, glm::vec2 inHeightMapUV, float inHeightMapUVScale);
+        TessChunk(glm::vec3 inPosition, int inWidth, int inPatchesPerEdge, unsigned int inTexture, unsigned int inheightMapTexture, glm::vec2 inHeightMapUV, float inHeightMapUVScale);
         virtual ~TessChunk();
 
         glm::vec3 position; //position from 0,0 with chunk 0,0 being bottom,left aka SE corner
@@ -30,18 +30,19 @@ class TessChunk
 
 
     protected:
-        int width;
+        int width; // patch width
+        int patchesPerEdge; // number of patches in one axis ex: if 3 then 3*3 = 9 total chunks
         std::vector<Vertex> vertices;
 
-        unsigned int heightMap;
-        glm::vec2 heightMapUV;
-        float heightMapUVScale;
+        unsigned int heightMap; //Height map texture ID
+        glm::vec2 heightMapUV; // root's UV on height map
+        float heightMapUVScale; // distance on UV map from South to North and/or East to West
 
-        unsigned int texture;
-        bool VAOclear, VBOclear = true;
-        unsigned int VAO, VBO;
-        void setUpVertices();
-        void setUpBuffers();
+        unsigned int texture; // ground texture
+        bool VAOclear, VBOclear = true; // Has VAO/VBO not been created
+        unsigned int VAO, VBO; // VAO/VBO ID's
+        void setUpVertices(); // Create verts to pass to VBO
+        void setUpBuffers(); // Create VAO/VBO
 
     private:
 };

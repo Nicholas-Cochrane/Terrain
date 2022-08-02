@@ -1,4 +1,5 @@
 //Tessellation Control Shader
+// AKA Hull Shader in DirectX
 #version 410 core
 
 layout(vertices=4) out;
@@ -15,13 +16,13 @@ void main()
 {
 	gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
 	TextureCoord[gl_InvocationID] = TexCoord[gl_InvocationID];
-	
+			
 	if (gl_InvocationID == 0)
     {
 		const int MIN_TESS_LEVEL = 4;
 		const int MAX_TESS_LEVEL = 64;
-		const float MIN_DISTANCE = 20;
-		const float MAX_DISTANCE = 800;
+		const float MIN_DISTANCE = 20;//20
+		const float MAX_DISTANCE = 800;//800
 
 		// ----------------------------------------------------------------------
 		// Step 2: transform each vertex into eye space

@@ -4,6 +4,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <glm/gtx/string_cast.hpp>
+
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
@@ -109,9 +111,10 @@ int main()
     // Shader compilation
     //---------------------
     Shader tessShader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
+    Shader mainShader("shaders/vertex_shader_projection.vs", "shaders/frag_shader_texture.fs", NULL, NULL);
 
     //SET DRAW MODE TO WIREFRAME
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glPointSize(10.0f);
 
     // Enable Depth buffer
@@ -130,24 +133,39 @@ int main()
     //tessShader.setInt("texture1",0);
     tessShader.setInt("heightMap", 0);
 
+    //mainShader.use();
+    //mainShader.setInt("texture1",0);
+
     //Object Creation
     //----------------
     //create chunks
     //TessChunk chunk(glm::vec3(0.0f,0.0f,0.0f), 64, texture1, heightMap, glm::vec2(0.0f, 0.0f), 1.0f);
     std::vector<TessChunk*> chunkList;
-    const int divisions = 40;
+    const int patchsPerEdge = 5;
+    const int divisions = 40/patchsPerEdge;
+    const float width = 64.0f*patchsPerEdge;
     for(int x = 0; x < divisions; x++){
         for(int z = 0; z < divisions; z++){// note: -z is forward in coord space
-            chunkList.push_back(new TessChunk(glm::vec3(x * 64.0f ,0.0f,-z * 64.0f)
-                                              , 64
-                                              , texture1, heightMap
-                                              , glm::vec2( (1.0f/divisions) * x
-                                                          , (1.0f/divisions) * z )
-                                              , (1.0f/divisions)));
+            chunkList.push_back(new TessChunk(glm::vec3(x * width ,0.0f,-z * width) // root of chunk (0,0) with x+ and z-
+                                              , width / patchsPerEdge //width of each patch
+                                              , patchsPerEdge // number of patches per edge
+                                              , texture1, heightMap // texture and height map texture
+                                              , glm::vec2( (1.0f/divisions) * x , (1.0f/divisions) * z ) // UV coord of root
+                                              , (1.0f/divisions))); //uv cord offset (UV coord from bottom to top/ left to right)
         }
     }
 
     //chunkList.push_back(new TessChunk(glm::vec3(0.0f,0.0f,0.0f), 64, texture1, heightMap, glm::vec2(0.0f, 0.0f), 1.0f));
+    /*std::vector<Chunk*> chunkList;
+    const int divisions = 90;
+    const float width = 64.0f;
+    for(int x = 0; x < divisions; x++){
+        for(int z = 0; z < divisions; z++){// note: -z is forward in coord space
+            chunkList.push_back(new Chunk(glm::vec3(x * width ,0.0f,-z * width)
+                                              , width
+                                              , texture1));
+        }
+    }*/
 
 
     std::cout << glGetString(GL_VERSION) << std::endl;
@@ -201,13 +219,14 @@ int main()
             // bind textures
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, texture1);
+            //tessShader.use();
             tessShader.use();
 
             //Model -> Global
             // Begin Draw
 
             //chunk.draw(tessShader);
-            for(int i = 0; i < chunkList.size(); i++){
+            for(unsigned int i = 0; i < chunkList.size(); i++){
                 chunkList.at(i)->draw(tessShader);
             }
 
@@ -232,6 +251,7 @@ int main()
             ImGui::Text(positionStr.c_str());
             positionStr = "Pitch:" + std::to_string(camera.Pitch);
             ImGui::Text(positionStr.c_str());
+            ImGui::Text(glm::to_string(view).c_str());
             ImGui::End();
 
             //render ImGui
@@ -250,6 +270,13 @@ int main()
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+
+    // Delete objects
+    //---------------
+    for(unsigned int i = 0; i < chunkList.size(); i++){
+        delete chunkList.at(i);
+        chunkList.at(i) = NULL;
+    }
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------

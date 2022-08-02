@@ -1,23 +1,29 @@
 #include "TessChunk.h"
 
-TessChunk::TessChunk(glm::vec3 inPosition, int inWidth, unsigned int inTexture, unsigned int inheightMapTexture, glm::vec2 inHeightMapUV, float inHeightMapUVScale)
+TessChunk::TessChunk(glm::vec3 inPosition, int inWidth, int inPatchesPerEdge, unsigned int inTexture, unsigned int inheightMapTexture, glm::vec2 inHeightMapUV, float inHeightMapUVScale)
 {
     //ctor
+    VAO = 0;// set VAO and VBO to ID 0 as if it's uninitialized value is 4, for it will not be assigned a new id and will link to the first VAO that had 4
+    VBO = 0; // The bug took me forever to find
     position = inPosition;
     width = inWidth;
+    patchesPerEdge = inPatchesPerEdge;
+    texture = inTexture;
     heightMap = inheightMapTexture;
     heightMapUV = inHeightMapUV;
     heightMapUVScale = inHeightMapUVScale;
     glPatchParameteri(GL_PATCH_VERTICES, 4); // set up patches for Tessellation
+
+    // Create verts and set up VAO/VBO
     setUpVertices();
     setUpBuffers();
-    texture = inTexture;
 
 }
 
 TessChunk::~TessChunk()
 {
     //dtor
+    //delete VAO and VBO
     if(!VAOclear)
         glDeleteVertexArrays(1, &VAO);
     if(!VBOclear)
@@ -30,43 +36,55 @@ void TessChunk::draw(Shader& shader)
 {
     shader.use();
 
-    shader.setInt("heightMap", 0); // set uniform to sampler
+    shader.setInt("heightMap", 0); // set shader uniform to sampler
 
     glActiveTexture(GL_TEXTURE0); // set sampler to texture
     glBindTexture(GL_TEXTURE_2D, heightMap);
 
-     glBindVertexArray(VAO);
-     glm::mat4 model = glm::mat4(1.0f);
-     model = glm::translate(model, position);
-     shader.setMat4("model", model);
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, position);
+    shader.setMat4("model", model);
 
-     glDrawArrays(GL_PATCHES, 0, 4);
-
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_PATCHES, 0, 4*patchesPerEdge*patchesPerEdge); //send verts as patch to Tessellation shader
 }
 
 void TessChunk::setUpVertices()
 {
     Vertex tempVertex;
-    //Create Chunk Patch
-    //bottom left (0,0)
-    tempVertex.posCoords = glm::vec3(0.0f, 0.0f, 0.0f);
-    tempVertex.texCoords = heightMapUV;
-    vertices.push_back(tempVertex);
+    for(int x = 0; x < patchesPerEdge; x++){
+        for(int z = 0; z < patchesPerEdge; z++){// note: -z is forward in coord space
+            //Create Chunk Patch
+            //posCoords x = (Corner x coordinate) + width * x
+            //          y = 0.0f
+            //          z = (Corner z coordinate) - width * z (-z is north)
+            // Position Offset is done with model matrix
+            // Texture Offset is done via heightMapUV
+            //texCoords uv = (bottom right UV coordinate) + heightMapUVScale/patchesPerEdge * x
+            //          heightMapUVScale is from bottom to top (N to S) and left to right (E to W) of UV coords of total chunk and thus must be divided by the number of patches
 
-    //bottom right (1,0)
-    tempVertex.posCoords = glm::vec3(width * 1.0f , 0.0f, 0.0f);
-    tempVertex.texCoords = heightMapUV + glm::vec2(heightMapUVScale, 0.0f);
-    vertices.push_back(tempVertex);
 
-        //top left (0,1)
-    tempVertex.posCoords = glm::vec3(0.0f, 0.0f, width * -1.0f); //-z is north
-    tempVertex.texCoords = heightMapUV + glm::vec2(0.0f, heightMapUVScale);
-    vertices.push_back(tempVertex);
+            //bottom left (0,0)
+            tempVertex.posCoords = glm::vec3(width* x, 0.0f, 0.0f - width * z);
+            tempVertex.texCoords = heightMapUV + glm::vec2(heightMapUVScale/patchesPerEdge * x, heightMapUVScale/patchesPerEdge * z);
+            vertices.push_back(tempVertex);
 
-    //top right (1,1)
-    tempVertex.posCoords = glm::vec3(width * 1.0f, 0.0f, width * -1.0f); //-z is north
-    tempVertex.texCoords =  heightMapUV +glm::vec2(heightMapUVScale, heightMapUVScale);
-    vertices.push_back(tempVertex);
+            //bottom right (1,0)
+            tempVertex.posCoords = glm::vec3(width + width* x, 0.0f, 0.0f - width * z);
+            tempVertex.texCoords = heightMapUV + glm::vec2(heightMapUVScale/patchesPerEdge + heightMapUVScale/patchesPerEdge * x, 0.0f + heightMapUVScale/patchesPerEdge * z);
+            vertices.push_back(tempVertex);
+
+                //top left (0,1)
+            tempVertex.posCoords = glm::vec3(width* x, 0.0f, width * -1.0f - width * z);//(-z is north)
+            tempVertex.texCoords = heightMapUV + glm::vec2(0.0f + heightMapUVScale/patchesPerEdge * x, heightMapUVScale/patchesPerEdge + heightMapUVScale/patchesPerEdge * z);
+            vertices.push_back(tempVertex);
+
+            //top right (1,1)
+            tempVertex.posCoords = glm::vec3(width + width* x, 0.0f, width * -1.0f - width * z);//(-z is north)
+            tempVertex.texCoords =  heightMapUV + glm::vec2(heightMapUVScale/patchesPerEdge + heightMapUVScale/patchesPerEdge * x, heightMapUVScale/patchesPerEdge + heightMapUVScale/patchesPerEdge * z);
+            vertices.push_back(tempVertex);
+        }
+    }
 
 }
 
@@ -78,7 +96,7 @@ void TessChunk::setUpBuffers()
     if(!VBOclear)
         glDeleteBuffers(1, &VBO);
 
-    VBOclear = false;
+    VBOclear = false;// mark buffers as created
     VAOclear = false;
 
     //Set up Vertex Buffer
