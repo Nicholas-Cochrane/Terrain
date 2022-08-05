@@ -6,6 +6,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "stb_image.h"
+#include <glad/glad.h>
+#include <GL/glfw3.h>
 
 #include "shader_s.h"
 
@@ -39,7 +41,7 @@ class TessChunk
         float heightMapUVScale; // distance on UV map from South to North and/or East to West
 
         unsigned int texture; // ground texture
-        bool VAOclear, VBOclear = true; // Has VAO/VBO not been created
+        bool VAOclear, VBOclear; // Has VAO/VBO not been created
         unsigned int VAO, VBO; // VAO/VBO ID's
         void setUpVertices(); // Create verts to pass to VBO
         void setUpBuffers(); // Create VAO/VBO

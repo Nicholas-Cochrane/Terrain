@@ -31,6 +31,28 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 unsigned int loadTexture(char const* filepath, GLint formatColor, GLint wrappingParam = GL_REPEAT);
 
+GLenum glCheckError_(const char *file, int line)
+{
+    GLenum errorCode;
+    while ((errorCode = glGetError()) != GL_NO_ERROR)
+    {
+        std::string error;
+        switch (errorCode)
+        {
+            case GL_INVALID_ENUM:                  error = "INVALID_ENUM"; break;
+            case GL_INVALID_VALUE:                 error = "INVALID_VALUE"; break;
+            case GL_INVALID_OPERATION:             error = "INVALID_OPERATION"; break;
+            case 0x0503:                           error = "STACK_OVERFLOW"; break;
+            case 0x0504:                           error = "STACK_UNDERFLOW"; break;
+            case GL_OUT_OF_MEMORY:                 error = "OUT_OF_MEMORY"; break;
+            case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+        }
+        std::cout << error << " | " << file << " (" << line << ")" << std::endl;
+    }
+    return errorCode;
+}
+#define glCheckError() glCheckError_(__FILE__, __LINE__)
+
 
 // settings
 //---------------------------------
@@ -44,9 +66,10 @@ unsigned int curr_scr_height = SCR_HEIGHT;
 Camera camera(glm::vec3(0.0f, 2.0f, 3.0f));
 float mouseLastX = SCR_WIDTH / 2.0f;
 float mouseLastY = SCR_HEIGHT / 2.0f;
-bool firstMouse = true;
-bool captureMouse = false;
-bool ctrlKeyDown = false; //to allow ctrl to toggle
+bool firstMouse = true; // if this is the first mouse input
+bool captureMouse = false; // if the mouse is currently captured
+bool wireframe = false; // if wire frame is on or off
+bool keyDown[GLFW_KEY_MENU + 1] = {false}; // if key is currently being pressed
 
 
 
@@ -107,11 +130,10 @@ int main()
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
-
     // Shader compilation
     //---------------------
     Shader tessShader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
-    Shader mainShader("shaders/vertex_shader_projection.vs", "shaders/frag_shader_texture.fs", NULL, NULL);
+    //Shader mainShader("shaders/vertex_shader_projection.vs", "shaders/frag_shader_texture.fs", NULL, NULL);
 
     //SET DRAW MODE TO WIREFRAME
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -138,11 +160,10 @@ int main()
 
     //Object Creation
     //----------------
-    //create chunks
-    //TessChunk chunk(glm::vec3(0.0f,0.0f,0.0f), 64, texture1, heightMap, glm::vec2(0.0f, 0.0f), 1.0f);
+    //create chunksw
     std::vector<TessChunk*> chunkList;
-    const int patchsPerEdge = 20;
-    const int divisions = 40/patchsPerEdge;
+    const int patchsPerEdge = 60;
+    const int divisions = 300/patchsPerEdge;
     const float width = 64.0f*patchsPerEdge;
     for(int x = 0; x < divisions; x++){
         for(int z = 0; z < divisions; z++){// note: -z is forward in coord space
@@ -154,6 +175,8 @@ int main()
                                               , (1.0f/divisions))); //uv cord offset (UV coord from bottom to top/ left to right)
         }
     }
+
+    tessShader.setFloat("heightScale", ((divisions*width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
 
     //chunkList.push_back(new TessChunk(glm::vec3(0.0f,0.0f,0.0f), 64, texture1, heightMap, glm::vec2(0.0f, 0.0f), 1.0f));
     /*std::vector<Chunk*> chunkList;
@@ -225,7 +248,7 @@ int main()
             //Model -> Global
             // Begin Draw
 
-            //chunk.draw(tessShader);
+
             for(unsigned int i = 0; i < chunkList.size(); i++){
                 chunkList.at(i)->draw(tessShader);
             }
@@ -235,7 +258,7 @@ int main()
             tessShader.setMat4("view", view);
 
             //View -> Projection
-            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), 0.1f, 10000.0f);
+            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), 0.1f, 50000.0f);
             tessShader.setMat4("projection", projection);
 
             //Create ImGui windows
@@ -251,7 +274,6 @@ int main()
             ImGui::Text(positionStr.c_str());
             positionStr = "Pitch:" + std::to_string(camera.Pitch);
             ImGui::Text(positionStr.c_str());
-            ImGui::Text(glm::to_string(view).c_str());
             ImGui::End();
 
             //render ImGui
@@ -301,8 +323,8 @@ void processInput(GLFWwindow *window)
         camera.ProcessKeyboard(RIGHT, deltaTime);
 
     if(glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
-        if(!ctrlKeyDown){// if this is the fist frame ctrl is pressed
-            ctrlKeyDown = true;
+        if(!keyDown[GLFW_KEY_LEFT_CONTROL]){// if this is the fist frame ctrl is pressed
+            keyDown[GLFW_KEY_LEFT_CONTROL] = true;
             if(captureMouse){ // if mouse is currently being captured toggle
                 captureMouse = false;
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);// tell GLFW to STOP capturing our mouse
@@ -312,7 +334,24 @@ void processInput(GLFWwindow *window)
             }
         }
     }else{ // if key is not currenlty pressed reset
-        ctrlKeyDown = false;
+        keyDown[GLFW_KEY_LEFT_CONTROL] = false;
+    }
+
+    if(glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS){ // toggle wireframe
+        if(!keyDown[GLFW_KEY_K]){ // if this is the fist frame ctrl is pressed
+            keyDown[GLFW_KEY_K] = true;
+            if(wireframe){ // if in wireframe
+                wireframe = false;
+                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // render wire frame
+            }else{
+                wireframe = true;
+                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);// render solid
+            }
+        }
+    }else{
+        keyDown[GLFW_KEY_K] = false;
+
+
     }
 
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)

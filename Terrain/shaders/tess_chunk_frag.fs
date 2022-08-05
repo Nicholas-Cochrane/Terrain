@@ -2,23 +2,23 @@
 #version 410 core
 
 uniform sampler2D heightMap;  // the texture corresponding to our height map
+uniform float heightScale;
 
 in float Height; //Height from Evaluation Shader
-in float HeightScale; // Normal vector from Evaluation Shader
 in vec2 TexCoords;
 
 out vec4 FragColor;
 
-float uTexelSize = 1.0f / 2556.0f;
+float uTexelSize = 1.0f / 19200.0f;//2556.0f;
 vec3 lightDir = normalize(vec3(0.0f, 0.5f, -0.5f));
 
 void main()
 {
-	float h = (Height + 16.0)/93.0f;
-	float left  = texture(heightMap, TexCoords + vec2(-uTexelSize, 0.0)).r * HeightScale * 2.0 - 1.0;
-	float right = texture(heightMap, TexCoords + vec2( uTexelSize, 0.0)).r * HeightScale * 2.0 - 1.0;
-	float up    = texture(heightMap, TexCoords + vec2(0.0,  uTexelSize)).r * HeightScale * 2.0 - 1.0;
-	float down  = texture(heightMap, TexCoords + vec2(0.0, -uTexelSize)).r * HeightScale * 2.0 - 1.0;
+	float h = (Height)/heightScale;
+	float left  = texture(heightMap, TexCoords + vec2(-uTexelSize, 0.0)).r * heightScale * 2.0 - 1.0;
+	float right = texture(heightMap, TexCoords + vec2( uTexelSize, 0.0)).r * heightScale * 2.0 - 1.0;
+	float up    = texture(heightMap, TexCoords + vec2(0.0,  uTexelSize)).r * heightScale * 2.0 - 1.0;
+	float down  = texture(heightMap, TexCoords + vec2(0.0, -uTexelSize)).r * heightScale * 2.0 - 1.0;
 	vec3 normal = normalize(vec3(down - up, 2.0, left - right));
 	float slope = max(dot(normal, vec3(0.0f,1.0f,0.0f)), 0.0f); // slope from up
 	

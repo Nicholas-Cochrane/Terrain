@@ -8,16 +8,15 @@ uniform sampler2D heightMap;  // the texture corresponding to our height map
 uniform mat4 model;           // the model matrix
 uniform mat4 view;            // the view matrix
 uniform mat4 projection;      // the projection matrix
+uniform float heightScale;
 
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 in vec2 TextureCoord[];
 
 // send to Fragment Shader for coloring
 out float Height;
-out float HeightScale;
 out vec2 TexCoords;
 
-float HEIGHT_SCALE = 93.0;
 
 void main()
 {
@@ -40,7 +39,7 @@ void main()
 	TexCoords = texCoord;
 
     // lookup texel at patch coordinate for height and scale + shift as desired
-    Height = texture(heightMap, texCoord).r * HEIGHT_SCALE - 16.0;
+    Height = texture(heightMap, texCoord).r * heightScale;
 
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
@@ -61,7 +60,6 @@ void main()
 
     // displace point along normal
     p -= normal * Height;
-	HeightScale = HEIGHT_SCALE;
 
     // ----------------------------------------------------------------------
     // output patch point position in clip space

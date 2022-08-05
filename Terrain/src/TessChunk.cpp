@@ -3,8 +3,10 @@
 TessChunk::TessChunk(glm::vec3 inPosition, int inWidth, int inPatchesPerEdge, unsigned int inTexture, unsigned int inheightMapTexture, glm::vec2 inHeightMapUV, float inHeightMapUVScale)
 {
     //ctor
-    VAO = 0;// set VAO and VBO to ID 0 as if it's uninitialized value is 4, for it will not be assigned a new id and will link to the first VAO that had 4
-    VBO = 0; // The bug took me forever to find
+    VAO = 0;
+    VBO = 0;
+    VAOclear = true;
+    VBOclear = true;
     position = inPosition;
     width = inWidth;
     patchesPerEdge = inPatchesPerEdge;
@@ -96,6 +98,7 @@ void TessChunk::setUpBuffers()
         glDeleteVertexArrays(1, &VAO);
     if(!VBOclear)
         glDeleteBuffers(1, &VBO);
+
 
     VBOclear = false;// mark buffers as created
     VAOclear = false;
