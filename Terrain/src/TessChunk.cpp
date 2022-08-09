@@ -34,7 +34,7 @@ TessChunk::~TessChunk()
     glDeleteTextures(1, &texture);
 }
 
-void TessChunk::draw(Shader& shader)
+void TessChunk::draw(Shader &shader, glm::mat4 &viewMatrix, glm::mat4 &projectionMatrix)
 {
     shader.use();
 
@@ -43,9 +43,10 @@ void TessChunk::draw(Shader& shader)
     glActiveTexture(GL_TEXTURE0); // set sampler to texture
     glBindTexture(GL_TEXTURE_2D, heightMap);
 
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, position);
-    shader.setMat4("model", model);
+    glm::mat4 modelMatrix = glm::mat4(1.0f);
+    modelMatrix = glm::translate(modelMatrix, position);
+    shader.setMat4("mpvMatrix", projectionMatrix * viewMatrix * modelMatrix );
+    shader.setMat4("mvMatrix", viewMatrix * modelMatrix);
 
     glBindVertexArray(VAO);
     glDrawArrays(GL_PATCHES, 0, 4*patchesPerEdge*patchesPerEdge); //send verts as patch to Tessellation shader

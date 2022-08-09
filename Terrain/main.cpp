@@ -162,8 +162,8 @@ int main()
     //----------------
     //create chunksw
     std::vector<TessChunk*> chunkList;
-    const int patchsPerEdge = 60;
-    const int divisions = 300/patchsPerEdge;
+    const int patchsPerEdge = 100;
+    const int divisions = 400/patchsPerEdge;
     const float width = 64.0f*patchsPerEdge;
     for(int x = 0; x < divisions; x++){
         for(int z = 0; z < divisions; z++){// note: -z is forward in coord space
@@ -175,7 +175,7 @@ int main()
                                               , (1.0f/divisions))); //uv cord offset (UV coord from bottom to top/ left to right)
         }
     }
-
+    tessShader.setFloat("uTexelSize", 1.0f/ (divisions * width)); // 1/total size of terrain
     tessShader.setFloat("heightScale", ((divisions*width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
 
     //chunkList.push_back(new TessChunk(glm::vec3(0.0f,0.0f,0.0f), 64, texture1, heightMap, glm::vec2(0.0f, 0.0f), 1.0f));
@@ -245,21 +245,20 @@ int main()
             //tessShader.use();
             tessShader.use();
 
-            //Model -> Global
-            // Begin Draw
-
-
-            for(unsigned int i = 0; i < chunkList.size(); i++){
-                chunkList.at(i)->draw(tessShader);
-            }
-
             //Global -> view
             glm::mat4 view = camera.GetViewMatrix();
-            tessShader.setMat4("view", view);
+            //tessShader.setMat4("view", view);
 
             //View -> Projection
             glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), 0.1f, 50000.0f);
-            tessShader.setMat4("projection", projection);
+            //tessShader.setMat4("projection", projection);
+
+            // Begin Draw
+
+            for(unsigned int i = 0; i < chunkList.size(); i++){
+                chunkList.at(i)->draw(tessShader, view, projection);
+            }
+
 
             //Create ImGui windows
             //--------------------

@@ -2,23 +2,67 @@
 #version 410 core
 
 uniform sampler2D heightMap;  // the texture corresponding to our height map
-uniform float heightScale;
+uniform float heightScale; // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
+uniform float uTexelSize; // 1/total size of terrain
 
 in float Height; //Height from Evaluation Shader
-in vec2 TexCoords;
+in vec2 HeightMapCoords;
 
 out vec4 FragColor;
 
-float uTexelSize = 1.0f / 19200.0f;//2556.0f;
 vec3 lightDir = normalize(vec3(0.0f, 0.5f, -0.5f));
+
+vec4 cubic(float v){
+    vec4 n = vec4(1.0, 2.0, 3.0, 4.0) - v;
+    vec4 s = n * n * n;
+    float x = s.x;
+    float y = s.y - 4.0 * s.x;
+    float z = s.z - 4.0 * s.y + 6.0 * s.x;
+    float w = 6.0 - x - y - z;
+    return vec4(x, y, z, w) * (1.0/6.0);
+}
+
+vec4 textureBicubic(sampler2D sampler, vec2 texCoords){
+
+   vec2 texSize = textureSize(sampler, 0);
+   vec2 invTexSize = 1.0 / texSize;
+   
+   texCoords = texCoords * texSize - 0.5;
+
+   
+    vec2 fxy = fract(texCoords);
+    texCoords -= fxy;
+
+    vec4 xcubic = cubic(fxy.x);
+    vec4 ycubic = cubic(fxy.y);
+
+    vec4 c = texCoords.xxyy + vec2 (-0.5, +1.5).xyxy;
+    
+    vec4 s = vec4(xcubic.xz + xcubic.yw, ycubic.xz + ycubic.yw);
+    vec4 offset = c + vec4 (xcubic.yw, ycubic.yw) / s;
+    
+    offset *= invTexSize.xxyy;
+    
+    vec4 sample0 = texture(sampler, offset.xz);
+    vec4 sample1 = texture(sampler, offset.yz);
+    vec4 sample2 = texture(sampler, offset.xw);
+    vec4 sample3 = texture(sampler, offset.yw);
+
+    float sx = s.x / (s.x + s.y);
+    float sy = s.z / (s.z + s.w);
+
+    return mix(
+       mix(sample3, sample2, sx), mix(sample1, sample0, sx)
+    , sy);
+}
 
 void main()
 {
 	float h = (Height)/heightScale;
-	float left  = texture(heightMap, TexCoords + vec2(-uTexelSize, 0.0)).r * heightScale * 2.0 - 1.0;
-	float right = texture(heightMap, TexCoords + vec2( uTexelSize, 0.0)).r * heightScale * 2.0 - 1.0;
-	float up    = texture(heightMap, TexCoords + vec2(0.0,  uTexelSize)).r * heightScale * 2.0 - 1.0;
-	float down  = texture(heightMap, TexCoords + vec2(0.0, -uTexelSize)).r * heightScale * 2.0 - 1.0;
+	float left  = texture(heightMap, HeightMapCoords + vec2(-uTexelSize, 0.0)).r * heightScale * 2.0 - 1.0;
+	float right = texture(heightMap, HeightMapCoords + vec2( uTexelSize, 0.0)).r * heightScale * 2.0 - 1.0;
+	float up    = texture(heightMap, HeightMapCoords + vec2(0.0,  uTexelSize)).r * heightScale * 2.0 - 1.0;
+	float down  = texture(heightMap, HeightMapCoords + vec2(0.0, -uTexelSize)).r * heightScale * 2.0 - 1.0;
 	vec3 normal = normalize(vec3(down - up, 2.0, left - right));
 	float slope = max(dot(normal, vec3(0.0f,1.0f,0.0f)), 0.0f); // slope from up
 	

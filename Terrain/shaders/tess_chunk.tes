@@ -5,22 +5,22 @@
 layout (quads, equal_spacing, ccw) in;
 
 uniform sampler2D heightMap;  // the texture corresponding to our height map
-uniform mat4 model;           // the model matrix
-uniform mat4 view;            // the view matrix
-uniform mat4 projection;      // the projection matrix
-uniform float heightScale;
+//uniform mat4 model;           // the model matrix
+//uniform mat4 view;            // the view matrix
+//uniform mat4 projection;      // the projection matrix
+uniform mat4 mpvMatrix;       // model projection view Matrix
+uniform float heightScale;    // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
 
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 in vec2 TextureCoord[];
 
 // send to Fragment Shader for coloring
 out float Height;
-out vec2 TexCoords;
-
+out vec2 HeightMapCoords;
 
 void main()
 {
-
+	
     // get patch coordinate
     float u = gl_TessCoord.x;
     float v = gl_TessCoord.y;
@@ -36,7 +36,7 @@ void main()
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
     vec2 texCoord = (t1 - t0) * v + t0;
-	TexCoords = texCoord;
+	HeightMapCoords = texCoord;
 
     // lookup texel at patch coordinate for height and scale + shift as desired
     Height = texture(heightMap, texCoord).r * heightScale;
@@ -63,5 +63,5 @@ void main()
 
     // ----------------------------------------------------------------------
     // output patch point position in clip space
-    gl_Position = projection * view * model * p;
+    gl_Position = mpvMatrix * p;
 }
