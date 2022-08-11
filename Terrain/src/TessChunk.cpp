@@ -34,7 +34,7 @@ TessChunk::~TessChunk()
     glDeleteTextures(1, &texture);
 }
 
-void TessChunk::draw(Shader &shader, glm::mat4 &viewMatrix, glm::mat4 &projectionMatrix)
+void TessChunk::draw(Shader &shader, glm::mat4 &viewMatrix, glm::mat4 &projectionMatrix, glm::mat4 &projectionMatrix2)
 {
     shader.use();
 
@@ -46,6 +46,7 @@ void TessChunk::draw(Shader &shader, glm::mat4 &viewMatrix, glm::mat4 &projectio
     glm::mat4 modelMatrix = glm::mat4(1.0f);
     modelMatrix = glm::translate(modelMatrix, position);
     shader.setMat4("mpvMatrix", projectionMatrix * viewMatrix * modelMatrix );
+    shader.setMat4("mpvMatrix2", projectionMatrix2 * viewMatrix * modelMatrix);
     shader.setMat4("mvMatrix", viewMatrix * modelMatrix);
 
     glBindVertexArray(VAO);

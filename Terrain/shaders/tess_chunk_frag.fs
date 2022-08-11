@@ -7,6 +7,7 @@ uniform float uTexelSize; // 1/total size of terrain
 
 in float Height; //Height from Evaluation Shader
 in vec2 HeightMapCoords;
+in vec4 mpvResult;
 
 out vec4 FragColor;
 
@@ -85,5 +86,5 @@ void main()
 	
 	float diff = max(dot(normal, lightDir), 0.0);
 	
-	FragColor = vec4((vec3(0.207f, 0.318f, 0.361f) + diff) * col.rgb,1.0f);
+	FragColor = vec4(mpvResult.xy/mpvResult.w, 1.0f, 1.0f);//vec4((vec3(0.207f, 0.318f, 0.361f) + diff) * col.rgb,1.0f);
 }

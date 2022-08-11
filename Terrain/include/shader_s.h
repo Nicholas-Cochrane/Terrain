@@ -120,6 +120,10 @@ public:
         glDeleteShader(tessControl);
         glDeleteShader(tessEvaluation);
     }
+
+    virtual ~Shader(){
+        glDeleteProgram(ID);
+    }
     // activate the shader
     // ------------------------------------------------------------------------
     void use()

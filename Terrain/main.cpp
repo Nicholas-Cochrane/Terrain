@@ -132,7 +132,7 @@ int main()
     }
     // Shader compilation
     //---------------------
-    Shader tessShader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
+    Shader* tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
     //Shader mainShader("shaders/vertex_shader_projection.vs", "shaders/frag_shader_texture.fs", NULL, NULL);
 
     //SET DRAW MODE TO WIREFRAME
@@ -149,11 +149,6 @@ int main()
     //---------------------------
     unsigned int texture1 = loadTexture("textures/uv.png", GL_RGB);
     unsigned int heightMap = loadTexture("textures/0.01344305976942091 (4130) (110km) square.png", GL_RGBA, GL_CLAMP_TO_EDGE);
-
-    //Set uniform to sampler
-    tessShader.use();
-    //tessShader.setInt("texture1",0);
-    tessShader.setInt("heightMap", 0);
 
     //mainShader.use();
     //mainShader.setInt("texture1",0);
@@ -175,8 +170,10 @@ int main()
                                               , (1.0f/divisions))); //uv cord offset (UV coord from bottom to top/ left to right)
         }
     }
-    tessShader.setFloat("uTexelSize", 1.0f/ (divisions * width)); // 1/total size of terrain
-    tessShader.setFloat("heightScale", ((divisions*width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
+    // set Tess Uniforms
+    tessShader->use();
+    tessShader->setFloat("uTexelSize", 1.0f/ (divisions * width)); // 1/total size of terrain
+    tessShader->setFloat("heightScale", ((divisions*width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
 
     //chunkList.push_back(new TessChunk(glm::vec3(0.0f,0.0f,0.0f), 64, texture1, heightMap, glm::vec2(0.0f, 0.0f), 1.0f));
     /*std::vector<Chunk*> chunkList;
@@ -243,7 +240,7 @@ int main()
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, texture1);
             //tessShader.use();
-            tessShader.use();
+            tessShader->use();
 
             //Global -> view
             glm::mat4 view = camera.GetViewMatrix();
@@ -253,10 +250,12 @@ int main()
             glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), 0.1f, 50000.0f);
             //tessShader.setMat4("projection", projection);
 
+            glm::mat4 projection2 = glm::perspective(glm::radians(40.0f), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), 0.1f, 50000.0f);
+
             // Begin Draw
 
             for(unsigned int i = 0; i < chunkList.size(); i++){
-                chunkList.at(i)->draw(tessShader, view, projection);
+                chunkList.at(i)->draw(*tessShader, view, projection, projection2);
             }
 
 
@@ -273,6 +272,20 @@ int main()
             ImGui::Text(positionStr.c_str());
             positionStr = "Pitch:" + std::to_string(camera.Pitch);
             ImGui::Text(positionStr.c_str());
+            glm::vec4 origin = projection * view * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+            positionStr = "point:" + std::to_string(origin.x/origin.w) + " ," + std::to_string(origin.y/origin.w) + " ," + std::to_string(origin.z/origin.w) + " ," + std::to_string(origin.w);
+            ImGui::Text(positionStr.c_str());
+            ImGui::End();
+
+            ImGui::Begin("Debug");
+            if (ImGui::Button("Reload Tess Shader")){
+                delete tessShader;
+                tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
+                //Set uniforms
+                tessShader->use();
+                tessShader->setFloat("uTexelSize", 1.0f/ (divisions * width)); // 1/total size of terrain
+                tessShader->setFloat("heightScale", ((divisions*width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
+            }
             ImGui::End();
 
             //render ImGui
