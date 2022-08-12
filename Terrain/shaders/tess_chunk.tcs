@@ -7,12 +7,14 @@ layout(vertices=4) out;
 //uniform mat4 model;           // the model matrix
 //uniform mat4 view;            // the view matrix
 uniform mat4 mvMatrix;          // model view matrix
-uniform mat4 mpvMatrix2;         // model projection view Matrix
+uniform mat4 mpvMatrix;         // model projection view Matrix
+uniform mat4 mpvMatrix2;
 
 // varying input from vertex shader
 in vec2 TexCoord[];
 // varying output to evaluation shader
 out vec2 TextureCoord[];
+
 
 void main()
 {
@@ -21,24 +23,38 @@ void main()
 			
 	if (gl_InvocationID == 0)
     {
-		const int MIN_TESS_LEVEL = 4;
+		const int MIN_TESS_LEVEL = 2;
 		const int MAX_TESS_LEVEL = 64;
 		const float MIN_DISTANCE = 20;//20
 		const float MAX_DISTANCE = 400;//800
 		
 		//step 1; transform each vertx to screen space
 		//--------------------------------------------
-		vec4 screenSpacePos00 = mpvMatrix2 * gl_in[0].gl_Position;
-		vec4 screenSpacePos01 = mpvMatrix2 * gl_in[1].gl_Position;
-		vec4 screenSpacePos10 = mpvMatrix2 * gl_in[2].gl_Position;
-		vec4 screenSpacePos11 = mpvMatrix2 * gl_in[3].gl_Position;
+		vec4 screenSpacePos00 = mpvMatrix * gl_in[0].gl_Position;
+		vec4 screenSpacePos01 = mpvMatrix * gl_in[1].gl_Position;
+		vec4 screenSpacePos10 = mpvMatrix * gl_in[2].gl_Position;
+		vec4 screenSpacePos11 = mpvMatrix * gl_in[3].gl_Position;
 		
-		// test that each corner is in screen space (if all coords are between 1.0 and -1.0)
-		float boundtest = step(abs(screenSpacePos00.x/screenSpacePos00.w), 1.0f) + step(abs(screenSpacePos00.y/screenSpacePos00.w), 1.0f) +
-								step(abs(screenSpacePos01.x/screenSpacePos01.w), 1.0f) + step(abs(screenSpacePos01.y/screenSpacePos01.w), 1.0f) +
-								step(abs(screenSpacePos10.x/screenSpacePos10.w), 1.0f) + step(abs(screenSpacePos10.y/screenSpacePos10.w), 1.0f) +
-								step(abs(screenSpacePos11.x/screenSpacePos11.w), 1.0f) + step(abs(screenSpacePos11.y/screenSpacePos11.w), 1.0f);
-		if(boundtest == 0.0f){
+		
+		float boundTest00 = step(1.0f,abs(screenSpacePos00.x/screenSpacePos00.w)) + step(1.0f,abs(screenSpacePos00.y/screenSpacePos00.w));
+		float boundTest01 = step(1.0f,abs(screenSpacePos01.x/screenSpacePos01.w)) + step(1.0f,abs(screenSpacePos01.y/screenSpacePos01.w));
+		float boundTest10 = step(1.0f,abs(screenSpacePos10.x/screenSpacePos10.w)) + step(1.0f,abs(screenSpacePos10.y/screenSpacePos10.w));
+		float boundTest11 = step(1.0f,abs(screenSpacePos11.x/screenSpacePos11.w)) + step(1.0f,abs(screenSpacePos11.y/screenSpacePos11.w));
+	
+		
+		float boundTest = boundTest00*boundTest10*boundTest01*boundTest11;
+		
+		/*
+		// create axis alined rectangle around screenspace patch
+		float minX = min(screenSpacePos00.x/screenSpacePos00.w, min(screenSpacePos01.x/screenSpacePos01.w, min(screenSpacePos10.x/screenSpacePos10.w, screenSpacePos11.x/screenSpacePos11.w)));
+		float minY = min(screenSpacePos00.y/screenSpacePos00.w, min(screenSpacePos01.y/screenSpacePos01.w, min(screenSpacePos10.y/screenSpacePos10.w, screenSpacePos11.y/screenSpacePos11.w)));
+		float maxX = max(screenSpacePos00.x/screenSpacePos00.w, max(screenSpacePos01.x/screenSpacePos01.w, max(screenSpacePos10.x/screenSpacePos10.w, screenSpacePos11.x/screenSpacePos11.w)));
+		float maxY = max(screenSpacePos00.y/screenSpacePos00.w, max(screenSpacePos01.y/screenSpacePos01.w, max(screenSpacePos10.y/screenSpacePos10.w, screenSpacePos11.y/screenSpacePos11.w)));
+	
+		
+		bool outBounds = minX > 1.0 || maxX < -1.0 || minY > 1.0 || maxY < -1.0;*/
+		bool outBounds = boundTest != 0.0f;
+		if(outBounds){
 			// Set Tessellation levels to 0 to not render patch that is out of bounds
 			gl_TessLevelOuter[0] = 0;
 			gl_TessLevelOuter[1] = 0;

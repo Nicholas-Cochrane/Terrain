@@ -86,5 +86,5 @@ void main()
 	
 	float diff = max(dot(normal, lightDir), 0.0);
 	
-	FragColor = vec4(mpvResult.xy/mpvResult.w, 1.0f, 1.0f);//vec4((vec3(0.207f, 0.318f, 0.361f) + diff) * col.rgb,1.0f);
+	FragColor = vec4((vec3(0.207f, 0.318f, 0.361f) + diff) * col.rgb,1.0f);
 }
