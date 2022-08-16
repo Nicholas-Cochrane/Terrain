@@ -252,6 +252,9 @@ int main()
 
             glm::mat4 projection2 = glm::perspective(glm::radians(40.0f), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), 0.1f, 50000.0f);
 
+            //send player position to shader
+            glUniform4fv(glGetUniformLocation(tessShader->ID, "camPos"), 1, glm::value_ptr(glm::vec4(camera.Position, 1.0f)));
+
             // Begin Draw
 
             for(unsigned int i = 0; i < chunkList.size(); i++){

@@ -4,11 +4,16 @@
 
 layout(vertices=4) out;
 
-//uniform mat4 model;           // the model matrix
-//uniform mat4 view;            // the view matrix
+uniform sampler2D heightMap;  // the texture corresponding to our height map
+
 uniform mat4 mvMatrix;          // model view matrix
 uniform mat4 mpvMatrix;         // model projection view Matrix
-uniform mat4 mpvMatrix2;
+uniform mat4 mpvMatrix2;        // Alt MPV for testing
+uniform mat4 modelMatrix;       // model matrix to move points from movdel space to world space
+
+uniform vec4 camPos;            // Camera coordinates
+uniform float heightScale;    	// (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
+
 
 // varying input from vertex shader
 in vec2 TexCoord[];
@@ -23,39 +28,45 @@ void main()
 			
 	if (gl_InvocationID == 0)
     {
-		const int MIN_TESS_LEVEL = 2;
+		// step 0;
+		// retrieve control point coords with height displacement via texture coordinates
+		//-------------------------------------------------------------------------------
+		vec4 point00 = (gl_in[0].gl_Position + vec4(0.0f, texture(heightMap, TextureCoord[0]).r * heightScale, 0.0f, 0.0f));
+		vec4 point01 = (gl_in[1].gl_Position + vec4(0.0f, texture(heightMap, TextureCoord[1]).r * heightScale, 0.0f, 0.0f));
+		vec4 point10 = (gl_in[2].gl_Position + vec4(0.0f, texture(heightMap, TextureCoord[2]).r * heightScale, 0.0f, 0.0f));
+		vec4 point11 = (gl_in[3].gl_Position + vec4(0.0f, texture(heightMap, TextureCoord[3]).r * heightScale, 0.0f, 0.0f));
+			
+		// mid point of patch to camera distance
+		float avgDist = distance(camPos, modelMatrix * ((point00+point01+point10+point11)/4.0f));
+		
+		const int MIN_TESS_LEVEL = 1;
 		const int MAX_TESS_LEVEL = 64;
-		const float MIN_DISTANCE = 20;//20
+		const float MIN_DISTANCE = 64;//20
 		const float MAX_DISTANCE = 400;//800
 		
 		//step 1; transform each vertx to screen space
 		//--------------------------------------------
-		vec4 screenSpacePos00 = mpvMatrix * gl_in[0].gl_Position;
-		vec4 screenSpacePos01 = mpvMatrix * gl_in[1].gl_Position;
-		vec4 screenSpacePos10 = mpvMatrix * gl_in[2].gl_Position;
-		vec4 screenSpacePos11 = mpvMatrix * gl_in[3].gl_Position;
+		vec4 screenSpacePos00 = mpvMatrix * point00;
+		vec4 screenSpacePos01 = mpvMatrix * point01;
+		vec4 screenSpacePos10 = mpvMatrix * point10;
+		vec4 screenSpacePos11 = mpvMatrix * point11;
 		
 		
-		float boundTest00 = step(1.0f,abs(screenSpacePos00.x/screenSpacePos00.w)) + step(1.0f,abs(screenSpacePos00.y/screenSpacePos00.w));
-		float boundTest01 = step(1.0f,abs(screenSpacePos01.x/screenSpacePos01.w)) + step(1.0f,abs(screenSpacePos01.y/screenSpacePos01.w));
-		float boundTest10 = step(1.0f,abs(screenSpacePos10.x/screenSpacePos10.w)) + step(1.0f,abs(screenSpacePos10.y/screenSpacePos10.w));
-		float boundTest11 = step(1.0f,abs(screenSpacePos11.x/screenSpacePos11.w)) + step(1.0f,abs(screenSpacePos11.y/screenSpacePos11.w));
-	
+		//test boundry by checking if patch is above/belows or left/right of view space
+		float boundTestX = step(1.0f,abs(screenSpacePos00.x/screenSpacePos00.w)) 
+								* step(1.0f,abs(screenSpacePos01.x/screenSpacePos01.w)) 
+								* step(1.0f,abs(screenSpacePos10.x/screenSpacePos10.w)) 
+								* step(1.0f,abs(screenSpacePos11.x/screenSpacePos11.w));
+		float boundTestY = step(1.0f,abs(screenSpacePos00.y/screenSpacePos00.w)) 
+								* step(1.0f,abs(screenSpacePos01.y/screenSpacePos01.w)) 
+								* step(1.0f,abs(screenSpacePos10.y/screenSpacePos10.w))
+								* step(1.0f,abs(screenSpacePos11.y/screenSpacePos11.w));
+								
 		
-		float boundTest = boundTest00*boundTest10*boundTest01*boundTest11;
-		
-		/*
-		// create axis alined rectangle around screenspace patch
-		float minX = min(screenSpacePos00.x/screenSpacePos00.w, min(screenSpacePos01.x/screenSpacePos01.w, min(screenSpacePos10.x/screenSpacePos10.w, screenSpacePos11.x/screenSpacePos11.w)));
-		float minY = min(screenSpacePos00.y/screenSpacePos00.w, min(screenSpacePos01.y/screenSpacePos01.w, min(screenSpacePos10.y/screenSpacePos10.w, screenSpacePos11.y/screenSpacePos11.w)));
-		float maxX = max(screenSpacePos00.x/screenSpacePos00.w, max(screenSpacePos01.x/screenSpacePos01.w, max(screenSpacePos10.x/screenSpacePos10.w, screenSpacePos11.x/screenSpacePos11.w)));
-		float maxY = max(screenSpacePos00.y/screenSpacePos00.w, max(screenSpacePos01.y/screenSpacePos01.w, max(screenSpacePos10.y/screenSpacePos10.w, screenSpacePos11.y/screenSpacePos11.w)));
-	
-		
-		bool outBounds = minX > 1.0 || maxX < -1.0 || minY > 1.0 || maxY < -1.0;*/
-		bool outBounds = boundTest != 0.0f;
-		if(outBounds){
-			// Set Tessellation levels to 0 to not render patch that is out of bounds
+		if((boundTestX != 0.0f) || (boundTestY != 0.0f) && avgDist > 64.0f){
+			// Set Tessellation levels to 0 to not render patch that is out of bounds 
+			// and not close to the camera (Which is the edge case that breaks high preformance bounds testing)
+			//-------------------------------------------------------------------------------------------------
 			gl_TessLevelOuter[0] = 0;
 			gl_TessLevelOuter[1] = 0;
 			gl_TessLevelOuter[2] = 0;
@@ -66,10 +77,10 @@ void main()
 		}else{
 			// ----------------------------------------------------------------------
 			// Step 2: transform each vertex into eye space
-			vec4 eyeSpacePos00 = mvMatrix * gl_in[0].gl_Position;
-			vec4 eyeSpacePos01 = mvMatrix * gl_in[1].gl_Position;
-			vec4 eyeSpacePos10 = mvMatrix * gl_in[2].gl_Position;
-			vec4 eyeSpacePos11 = mvMatrix * gl_in[3].gl_Position;
+			vec4 eyeSpacePos00 = mvMatrix * point00;
+			vec4 eyeSpacePos01 = mvMatrix * point01;
+			vec4 eyeSpacePos10 = mvMatrix * point10;
+			vec4 eyeSpacePos11 = mvMatrix * point11;
 
 			// ----------------------------------------------------------------------
 			// Step 3: "distance" from camera scaled between 0 and 1
