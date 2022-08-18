@@ -155,37 +155,27 @@ int main()
 
     //Object Creation
     //----------------
-    //create chunksw
+    //create chunks
     std::vector<TessChunk*> chunkList;
-    const int patchsPerEdge = 100;
-    const int divisions = 400/patchsPerEdge;
-    const float width = 64.0f*patchsPerEdge;
-    for(int x = 0; x < divisions; x++){
-        for(int z = 0; z < divisions; z++){// note: -z is forward in coord space
-            chunkList.push_back(new TessChunk(glm::vec3(x * width ,0.0f,-z * width) // root of chunk (0,0) with x+ and z-
-                                              , width / patchsPerEdge //width of each patch
-                                              , patchsPerEdge // number of patches per edge
+    const int Meter_Scale = 110000; // scale of texture in meters
+    const int Max_Height = 3997;// height of brightest pixel in texture
+    const int Patchs_Per_Edge = 50;
+    const int Divisions = 200/Patchs_Per_Edge;
+    const float Chunk_Width = 64.0f*Patchs_Per_Edge;
+    for(int x = 0; x < Divisions; x++){
+        for(int z = 0; z < Divisions; z++){// note: -z is forward in coord space
+            chunkList.push_back(new TessChunk(glm::vec3(x * Chunk_Width ,0.0f,-z * Chunk_Width) // root of chunk (0,0) with x+ and z-
+                                              , Chunk_Width / Patchs_Per_Edge //width of each patch
+                                              , Patchs_Per_Edge // number of patches per edge
                                               , texture1, heightMap // texture and height map texture
-                                              , glm::vec2( (1.0f/divisions) * x , (1.0f/divisions) * z ) // UV coord of root
-                                              , (1.0f/divisions))); //uv cord offset (UV coord from bottom to top/ left to right)
+                                              , glm::vec2( (1.0f/Divisions) * x , (1.0f/Divisions) * z ) // UV coord of root
+                                              , (1.0f/Divisions))); //uv cord offset (UV coord from bottom to top/ left to right)
         }
     }
     // set Tess Uniforms
     tessShader->use();
-    tessShader->setFloat("uTexelSize", 1.0f/ (divisions * width)); // 1/total size of terrain
-    tessShader->setFloat("heightScale", ((divisions*width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
-
-    //chunkList.push_back(new TessChunk(glm::vec3(0.0f,0.0f,0.0f), 64, texture1, heightMap, glm::vec2(0.0f, 0.0f), 1.0f));
-    /*std::vector<Chunk*> chunkList;
-    const int divisions = 90;
-    const float width = 64.0f;
-    for(int x = 0; x < divisions; x++){
-        for(int z = 0; z < divisions; z++){// note: -z is forward in coord space
-            chunkList.push_back(new Chunk(glm::vec3(x * width ,0.0f,-z * width)
-                                              , width
-                                              , texture1));
-        }
-    }*/
+    tessShader->setFloat("uTexelSize", 1.0f/ (Divisions * Chunk_Width)); // 1/total size of terrain
+    tessShader->setFloat("heightScale", ((Divisions*Chunk_Width)/Meter_Scale) * Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
 
 
     std::cout << glGetString(GL_VERSION) << std::endl;
@@ -286,8 +276,8 @@ int main()
                 tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
                 //Set uniforms
                 tessShader->use();
-                tessShader->setFloat("uTexelSize", 1.0f/ (divisions * width)); // 1/total size of terrain
-                tessShader->setFloat("heightScale", ((divisions*width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
+                tessShader->setFloat("uTexelSize", 1.0f/ (Divisions * Chunk_Width)); // 1/total size of terrain
+                tessShader->setFloat("heightScale", ((Divisions * Chunk_Width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
             }
             ImGui::End();
 

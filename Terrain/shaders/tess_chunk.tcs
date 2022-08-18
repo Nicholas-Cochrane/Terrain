@@ -42,7 +42,7 @@ void main()
 		const int MIN_TESS_LEVEL = 1;
 		const int MAX_TESS_LEVEL = 64;
 		const float MIN_DISTANCE = 64;//20
-		const float MAX_DISTANCE = 400;//800
+		const float MAX_DISTANCE = 1000;//800
 		
 		//step 1; transform each vertx to screen space
 		//--------------------------------------------
@@ -52,7 +52,7 @@ void main()
 		vec4 screenSpacePos11 = mpvMatrix * point11;
 		
 		
-		//test boundry by checking if patch is above/belows or left/right of view space
+		//test boundry by checking if patch is above/belows or left/right of view space or byond near/far plane
 		float boundTestX = step(1.0f,abs(screenSpacePos00.x/screenSpacePos00.w)) 
 								* step(1.0f,abs(screenSpacePos01.x/screenSpacePos01.w)) 
 								* step(1.0f,abs(screenSpacePos10.x/screenSpacePos10.w)) 
@@ -61,9 +61,13 @@ void main()
 								* step(1.0f,abs(screenSpacePos01.y/screenSpacePos01.w)) 
 								* step(1.0f,abs(screenSpacePos10.y/screenSpacePos10.w))
 								* step(1.0f,abs(screenSpacePos11.y/screenSpacePos11.w));
+		float boundTestZ = step(1.0f,abs(screenSpacePos00.z/screenSpacePos00.w)) 
+								* step(1.0f,abs(screenSpacePos01.z/screenSpacePos01.w)) 
+								* step(1.0f,abs(screenSpacePos10.z/screenSpacePos10.w))
+								* step(1.0f,abs(screenSpacePos11.z/screenSpacePos11.w));
 								
 		
-		if((boundTestX != 0.0f) || (boundTestY != 0.0f) && avgDist > 64.0f){
+		if((boundTestX != 0.0f || boundTestY != 0.0f || boundTestZ != 0.0f) && avgDist > 80.0f){
 			// Set Tessellation levels to 0 to not render patch that is out of bounds 
 			// and not close to the camera (Which is the edge case that breaks high preformance bounds testing)
 			//-------------------------------------------------------------------------------------------------
@@ -77,7 +81,7 @@ void main()
 		}else{
 			// ----------------------------------------------------------------------
 			// Step 2: transform each vertex into eye space
-			vec4 eyeSpacePos00 = mvMatrix * point00;
+			/*vec4 eyeSpacePos00 = mvMatrix * point00;
 			vec4 eyeSpacePos01 = mvMatrix * point01;
 			vec4 eyeSpacePos10 = mvMatrix * point10;
 			vec4 eyeSpacePos11 = mvMatrix * point11;
@@ -87,7 +91,13 @@ void main()
 			float distance00 = clamp((abs(eyeSpacePos00.z)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.0, 1.0);
 			float distance01 = clamp((abs(eyeSpacePos01.z)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.0, 1.0);
 			float distance10 = clamp((abs(eyeSpacePos10.z)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.0, 1.0);
-			float distance11 = clamp((abs(eyeSpacePos11.z)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.0, 1.0);
+			float distance11 = clamp((abs(eyeSpacePos11.z)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.0, 1.0);*/
+			
+			// power use to make fall of of tessellation not liner but exponential
+			float distance00 = clamp(pow((distance(camPos, modelMatrix *point00)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.4f), 0.0, 1.0);
+			float distance01 = clamp(pow((distance(camPos, modelMatrix *point01)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.4f), 0.0, 1.0);
+			float distance10 = clamp(pow((distance(camPos, modelMatrix *point10)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.4f), 0.0, 1.0);
+			float distance11 = clamp(pow((distance(camPos, modelMatrix *point11)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.4f), 0.0, 1.0);
 
 			// ----------------------------------------------------------------------
 			// Step 4: interpolate edge tessellation level based on closer vertex
