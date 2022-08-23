@@ -16,6 +16,8 @@
 #include <string>
 #include <math.h>
 #include <vector>
+#include<type_traits>
+#include<utility>
 
 #include "include/shader_s.h"
 #include "include/camera.h"
@@ -30,6 +32,9 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 unsigned int loadTexture(char const* filepath, GLint formatColor, GLint wrappingParam = GL_REPEAT);
+
+//Global for Lambda
+Shader* mapShader;
 
 GLenum glCheckError_(const char *file, int line)
 {
@@ -53,6 +58,36 @@ GLenum glCheckError_(const char *file, int line)
 }
 #define glCheckError() glCheckError_(__FILE__, __LINE__)
 
+// Capturing Lambda to void (*) Wrapper
+/*template<typename Callable>
+union storage
+{
+    storage() {}
+    std::decay_t<Callable> callable;
+};
+
+template<int, typename Callable, typename Ret, typename... Args>
+auto fnptr_(Callable&& c, Ret (*)(Args...))
+{
+    static bool used = false;
+    static storage<Callable> s;
+    using type = decltype(s.callable);
+
+    if(used)
+        s.callable.~type();
+    new (&s.callable) type(std::forward<Callable>(c));
+    used = true;
+
+    return [](Args... args) -> Ret {
+        return Ret(s.callable(std::forward<Args>(args)...));
+    };
+}
+
+template<typename Fn, int N = 0, typename Callable>
+Fn* fnptr(Callable&& c)
+{
+    return fnptr_<N>(std::forward<Callable>(c), (Fn*)nullptr);
+}*/
 
 // settings
 //---------------------------------
@@ -130,10 +165,13 @@ int main()
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
+
+
     // Shader compilation
     //---------------------
     Shader* tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
-    //Shader mainShader("shaders/vertex_shader_projection.vs", "shaders/frag_shader_texture.fs", NULL, NULL);
+    // mapShader pre declared as global for use in Lambda function
+    mapShader = new Shader("shaders/imgui_shader.vs", "shaders/imgui_shader.fs", NULL, NULL);
 
     //SET DRAW MODE TO WIREFRAME
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -176,7 +214,6 @@ int main()
     tessShader->use();
     tessShader->setFloat("uTexelSize", 1.0f/ (Divisions * Chunk_Width)); // 1/total size of terrain
     tessShader->setFloat("heightScale", ((Divisions*Chunk_Width)/Meter_Scale) * Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
-
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
@@ -280,6 +317,67 @@ int main()
                 tessShader->setFloat("heightScale", ((Divisions * Chunk_Width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
             }
             ImGui::End();
+
+            ImGui::Begin("Map");
+            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+            draw_list->AddCallback([](const ImDrawList*, const ImDrawCmd*)
+                {
+                    ImDrawData* draw_data = ImGui::GetDrawData();
+                    float L = draw_data->DisplayPos.x;
+                    float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
+                    float T = draw_data->DisplayPos.y;
+                    float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
+
+                    const float ortho_projection[4][4] =
+                    {
+                       { 2.0f / (R - L),   0.0f,         0.0f,   0.0f },
+                       { 0.0f,         2.0f / (T - B),   0.0f,   0.0f },
+                       { 0.0f,         0.0f,        -1.0f,   0.0f },
+                       { (R + L) / (L - R),  (T + B) / (B - T),  0.0f,   1.0f },
+                    };
+
+                    mapShader->use(); // If I remove this line, it works
+                    glUniformMatrix4fv(glGetUniformLocation(mapShader->ID, "ProjMtx"), 1, GL_FALSE, &ortho_projection[0][0]);
+                }, nullptr);
+            ImGui::Image((void*)(intptr_t)heightMap, ImVec2(512, 512), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
+            draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+            ImGui::End();
+
+            //ImGui::ShowMetricsWindow(); //TODO delete this line
+
+            //test ImGui window for shaders
+            /*ImGui::Begin("FX", NULL, ImGuiWindowFlags_AlwaysAutoResize);
+            ImVec2 size(1000.0f, 600.0f);
+            ImGui::InvisibleButton("canvas", size);
+            ImVec2 p0 = ImGui::GetItemRectMin();
+            ImVec2 p1 = ImGui::GetItemRectMax();
+            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+            draw_list->PushClipRect(p0, p1);
+            draw_list->AddCallback([](const ImDrawList*, const ImDrawCmd*)
+                {
+                    ImDrawData* draw_data = ImGui::GetDrawData();
+                    float L = draw_data->DisplayPos.x;
+                    float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
+                    float T = draw_data->DisplayPos.y;
+                    float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
+
+                    const float ortho_projection[4][4] =
+                    {
+                       { 2.0f / (R - L),   0.0f,         0.0f,   0.0f },
+                       { 0.0f,         2.0f / (T - B),   0.0f,   0.0f },
+                       { 0.0f,         0.0f,        -1.0f,   0.0f },
+                       { (R + L) / (L - R),  (T + B) / (B - T),  0.0f,   1.0f },
+                    };
+
+                    mapShader->use(); // If I remove this line, it works
+                    glUniformMatrix4fv(glGetUniformLocation(mapShader->ID, "ProjMtx"), 1, GL_FALSE, &ortho_projection[0][0]);
+                }, nullptr);
+            draw_list->AddRectFilled(p0, p1, 0xFFFF00FF);
+            draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+            draw_list->PopClipRect();
+
+            ImGui::End();*/
 
             //render ImGui
             ImGui::Render();
