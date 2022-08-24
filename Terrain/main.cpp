@@ -33,8 +33,6 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 unsigned int loadTexture(char const* filepath, GLint formatColor, GLint wrappingParam = GL_REPEAT);
 
-//Global for Lambda
-Shader* mapShader;
 
 GLenum glCheckError_(const char *file, int line)
 {
@@ -58,36 +56,6 @@ GLenum glCheckError_(const char *file, int line)
 }
 #define glCheckError() glCheckError_(__FILE__, __LINE__)
 
-// Capturing Lambda to void (*) Wrapper
-/*template<typename Callable>
-union storage
-{
-    storage() {}
-    std::decay_t<Callable> callable;
-};
-
-template<int, typename Callable, typename Ret, typename... Args>
-auto fnptr_(Callable&& c, Ret (*)(Args...))
-{
-    static bool used = false;
-    static storage<Callable> s;
-    using type = decltype(s.callable);
-
-    if(used)
-        s.callable.~type();
-    new (&s.callable) type(std::forward<Callable>(c));
-    used = true;
-
-    return [](Args... args) -> Ret {
-        return Ret(s.callable(std::forward<Args>(args)...));
-    };
-}
-
-template<typename Fn, int N = 0, typename Callable>
-Fn* fnptr(Callable&& c)
-{
-    return fnptr_<N>(std::forward<Callable>(c), (Fn*)nullptr);
-}*/
 
 // settings
 //---------------------------------
@@ -170,8 +138,7 @@ int main()
     // Shader compilation
     //---------------------
     Shader* tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
-    // mapShader pre declared as global for use in Lambda function
-    mapShader = new Shader("shaders/imgui_shader.vs", "shaders/imgui_shader.fs", NULL, NULL);
+    Shader* mapShader = new Shader("shaders/imgui_shader.vs", "shaders/imgui_shader.fs", NULL, NULL);
 
     //SET DRAW MODE TO WIREFRAME
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -223,6 +190,11 @@ int main()
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     ImGui::StyleColorsDark();
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.FrameRounding = 4.0f; //Ex: Slider Bar, Window, Check Box
+    style.GrabRounding = 3.0f;  //Ex: Slider handle
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
+    style.WindowBorderSize = 0.0f;
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 410");
 
@@ -292,92 +264,127 @@ int main()
             //Create ImGui windows
             //--------------------
             ImGui::Begin("Pos");
-            std::string positionStr = "X:" + std::to_string(camera.Position.x);
-            ImGui::Text(positionStr.c_str());
-            positionStr = "Y:" + std::to_string(camera.Position.y);
-            ImGui::Text(positionStr.c_str());
-            positionStr = "Z:" + std::to_string(camera.Position.z);
-            ImGui::Text(positionStr.c_str());
-            positionStr = "FPS:" + std::to_string(FPS);
-            ImGui::Text(positionStr.c_str());
-            positionStr = "Pitch:" + std::to_string(camera.Pitch);
-            ImGui::Text(positionStr.c_str());
-            glm::vec4 origin = projection * view * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-            positionStr = "point:" + std::to_string(origin.x/origin.w) + " ," + std::to_string(origin.y/origin.w) + " ," + std::to_string(origin.z/origin.w) + " ," + std::to_string(origin.w);
-            ImGui::Text(positionStr.c_str());
+                std::string positionStr = "X:" + std::to_string(camera.Position.x);
+                ImGui::Text(positionStr.c_str());
+                positionStr = "Y:" + std::to_string(camera.Position.y);
+                ImGui::Text(positionStr.c_str());
+                positionStr = "Z:" + std::to_string(camera.Position.z);
+                ImGui::Text(positionStr.c_str());
+                positionStr = "FPS:" + std::to_string(FPS);
+                ImGui::Text(positionStr.c_str());
+                positionStr = "Pitch:" + std::to_string(camera.Pitch);
+                ImGui::Text(positionStr.c_str());
             ImGui::End();
 
             ImGui::Begin("Debug");
-            if (ImGui::Button("Reload Tess Shader")){
-                delete tessShader;
-                tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
-                //Set uniforms
-                tessShader->use();
-                tessShader->setFloat("uTexelSize", 1.0f/ (Divisions * Chunk_Width)); // 1/total size of terrain
-                tessShader->setFloat("heightScale", ((Divisions * Chunk_Width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
-            }
+                if (ImGui::Button("Reload Tess Shader")){
+                    delete tessShader;
+                    tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
+                    //Set uniforms
+                    tessShader->use();
+                    tessShader->setFloat("uTexelSize", 1.0f/ (Divisions * Chunk_Width)); // 1/total size of terrain
+                    tessShader->setFloat("heightScale", ((Divisions * Chunk_Width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
+                }
             ImGui::End();
 
+            ImGui::ShowDemoWindow();
+
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, {150.f,238.f });
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,0.0));
             ImGui::Begin("Map");
-            ImDrawList* draw_list = ImGui::GetWindowDrawList();
-            draw_list->AddCallback([](const ImDrawList*, const ImDrawCmd*)
-                {
-                    ImDrawData* draw_data = ImGui::GetDrawData();
-                    float L = draw_data->DisplayPos.x;
-                    float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
-                    float T = draw_data->DisplayPos.y;
-                    float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
+                ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
-                    const float ortho_projection[4][4] =
+                // Toggles for color channel filter
+                static bool redChannel = true;
+                static bool greenChannel = true;
+                static bool blueChannel = true;
+                static bool alphaChannel = true;
+                static bool alphaOnly = false;
+
+                float window_visible_x = ImGui::GetContentRegionAvail().x;
+                unsigned int elementNum = 1; // number of elements from the left + next element
+                const float elementSize = 75.0f;
+                ImGui::Checkbox("Red", &redChannel);
+                if(elementSize*(elementNum+1) < window_visible_x ){ // is next element past window edge
+                    ImGui::SameLine(elementSize*elementNum);
+                    elementNum++;
+                }else{
+                    elementNum = 1;
+                }
+
+                ImGui::Checkbox("Green", &greenChannel);
+                if(elementSize*(elementNum+1) < window_visible_x ){// is next element past window edge
+                    ImGui::SameLine(elementSize*elementNum);
+                    elementNum++;
+                }else{
+                    elementNum = 1;
+                }
+
+                ImGui::Checkbox("Blue", &blueChannel);
+                if(elementSize*(elementNum+1) < window_visible_x ){// is next element past window edge
+                    ImGui::SameLine(elementSize*elementNum);
+                    elementNum++;
+                }else{
+                    elementNum = 1;
+                }
+
+                ImGui::Checkbox("Alpha", &alphaChannel);
+                if(elementSize*(elementNum+2) < window_visible_x ){// is next element past window edge (next element is double size)
+                    ImGui::SameLine(elementSize*elementNum);
+                    elementNum++;
+                }else{
+                    elementNum = 1;
+                }
+
+                ImGui::Checkbox("Render Alpha Only", &alphaOnly);
+
+
+                //Create a struct to pass into callback function
+                struct mapCallbackArguments{
+                    Shader* shaderPtr;
+                    glm::vec4 channels;
+                    bool alphaOnly;
+                };
+
+                static struct mapCallbackArguments *callback_Args_Ptr, callback_Args;
+                callback_Args_Ptr = &callback_Args; // set struct pointer to point to a struct
+                //set up arguments to be passed to callback function
+                callback_Args.shaderPtr = mapShader;
+                callback_Args.channels = glm::vec4(redChannel, blueChannel, greenChannel, alphaChannel);
+                callback_Args.alphaOnly = alphaOnly;
+
+                draw_list->AddCallback([](const ImDrawList* parent_list, const ImDrawCmd* cmd)
                     {
-                       { 2.0f / (R - L),   0.0f,         0.0f,   0.0f },
-                       { 0.0f,         2.0f / (T - B),   0.0f,   0.0f },
-                       { 0.0f,         0.0f,        -1.0f,   0.0f },
-                       { (R + L) / (L - R),  (T + B) / (B - T),  0.0f,   1.0f },
-                    };
+                        mapCallbackArguments* arguments = (mapCallbackArguments*)cmd->UserCallbackData; // retrieve arguments from callback
 
-                    mapShader->use(); // If I remove this line, it works
-                    glUniformMatrix4fv(glGetUniformLocation(mapShader->ID, "ProjMtx"), 1, GL_FALSE, &ortho_projection[0][0]);
-                }, nullptr);
-            ImGui::Image((void*)(intptr_t)heightMap, ImVec2(512, 512), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
-            draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+                        ImDrawData* draw_data = ImGui::GetDrawData();
+                        float L = draw_data->DisplayPos.x;
+                        float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
+                        float T = draw_data->DisplayPos.y;
+                        float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
+
+                        const float ortho_projection[4][4] =
+                        {
+                           { 2.0f / (R - L),   0.0f,         0.0f,   0.0f },
+                           { 0.0f,         2.0f / (T - B),   0.0f,   0.0f },
+                           { 0.0f,         0.0f,        -1.0f,   0.0f },
+                           { (R + L) / (L - R),  (T + B) / (B - T),  0.0f,   1.0f },
+                        };
+
+                        arguments->shaderPtr->use(); // If I remove this line, it works
+                        arguments->shaderPtr->setBool("alphaOnly", arguments->alphaOnly);
+                        glUniform4fv(glGetUniformLocation(arguments->shaderPtr->ID, "channels"), 1, glm::value_ptr(arguments->channels));
+                        glUniformMatrix4fv(glGetUniformLocation(arguments->shaderPtr->ID, "ProjMtx"), 1, GL_FALSE, &ortho_projection[0][0]);
+                    }, (void*)callback_Args_Ptr);
+
+                float mapSize = std::min(ImGui::GetContentRegionAvail().x,ImGui::GetContentRegionAvail().y);
+                ImGui::Image((void*)(intptr_t)heightMap, ImVec2(mapSize, mapSize), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
+                draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
             ImGui::End();
+            ImGui::PopStyleVar();
+            ImGui::PopStyleVar();
 
-            //ImGui::ShowMetricsWindow(); //TODO delete this line
-
-            //test ImGui window for shaders
-            /*ImGui::Begin("FX", NULL, ImGuiWindowFlags_AlwaysAutoResize);
-            ImVec2 size(1000.0f, 600.0f);
-            ImGui::InvisibleButton("canvas", size);
-            ImVec2 p0 = ImGui::GetItemRectMin();
-            ImVec2 p1 = ImGui::GetItemRectMax();
-            ImDrawList* draw_list = ImGui::GetWindowDrawList();
-
-            draw_list->PushClipRect(p0, p1);
-            draw_list->AddCallback([](const ImDrawList*, const ImDrawCmd*)
-                {
-                    ImDrawData* draw_data = ImGui::GetDrawData();
-                    float L = draw_data->DisplayPos.x;
-                    float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
-                    float T = draw_data->DisplayPos.y;
-                    float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
-
-                    const float ortho_projection[4][4] =
-                    {
-                       { 2.0f / (R - L),   0.0f,         0.0f,   0.0f },
-                       { 0.0f,         2.0f / (T - B),   0.0f,   0.0f },
-                       { 0.0f,         0.0f,        -1.0f,   0.0f },
-                       { (R + L) / (L - R),  (T + B) / (B - T),  0.0f,   1.0f },
-                    };
-
-                    mapShader->use(); // If I remove this line, it works
-                    glUniformMatrix4fv(glGetUniformLocation(mapShader->ID, "ProjMtx"), 1, GL_FALSE, &ortho_projection[0][0]);
-                }, nullptr);
-            draw_list->AddRectFilled(p0, p1, 0xFFFF00FF);
-            draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
-            draw_list->PopClipRect();
-
-            ImGui::End();*/
+            ImGui::ShowMetricsWindow(); //TODO add to debug menu
 
             //render ImGui
             ImGui::Render();
@@ -431,9 +438,11 @@ void processInput(GLFWwindow *window)
             if(captureMouse){ // if mouse is currently being captured toggle
                 captureMouse = false;
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);// tell GLFW to STOP capturing our mouse
+                ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse; // enable ImGui mouse interaction
             }else{
                 captureMouse = true;
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);// tell GLFW to capture mouse
+                ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse; // disable ImGui mouse interaction
             }
         }
     }else{ // if key is not currenlty pressed reset
@@ -456,9 +465,6 @@ void processInput(GLFWwindow *window)
 
 
     }
-
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-        std::cout << deltaTime << std::endl;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
