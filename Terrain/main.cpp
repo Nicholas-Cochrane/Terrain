@@ -154,6 +154,7 @@ int main()
     //---------------------------
     unsigned int texture1 = loadTexture("textures/uv.png", GL_RGB);
     unsigned int heightMap = loadTexture("textures/0.01344305976942091 (4130) (110km) square.png", GL_RGBA, GL_CLAMP_TO_EDGE);
+    unsigned int playerIcon = loadTexture("textures/map arrow.png", GL_RGBA, GL_CLAMP_TO_EDGE);
 
     //mainShader.use();
     //mainShader.setInt("texture1",0);
@@ -263,6 +264,7 @@ int main()
 
             //Create ImGui windows
             //--------------------
+
             ImGui::Begin("Pos");
                 std::string positionStr = "X:" + std::to_string(camera.Position.x);
                 ImGui::Text(positionStr.c_str());
@@ -276,7 +278,10 @@ int main()
                 ImGui::Text(positionStr.c_str());
             ImGui::End();
 
-            ImGui::Begin("Debug");
+            static bool metricsWindowToggle = false;
+            static bool demoWindowToggle = false;
+
+            ImGui::Begin("Debug", NULL, ImGuiWindowFlags_NoScrollbar);
                 if (ImGui::Button("Reload Tess Shader")){
                     delete tessShader;
                     tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
@@ -285,13 +290,13 @@ int main()
                     tessShader->setFloat("uTexelSize", 1.0f/ (Divisions * Chunk_Width)); // 1/total size of terrain
                     tessShader->setFloat("heightScale", ((Divisions * Chunk_Width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
                 }
+                ImGui::Checkbox("Metrics Window", &metricsWindowToggle);
+                ImGui::Checkbox("Demo Window", &demoWindowToggle);
             ImGui::End();
 
-            ImGui::ShowDemoWindow();
-
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, {150.f,238.f });
+            ImGui::SetNextWindowSizeConstraints(ImVec2(168,264), ImVec2(FLT_MAX,FLT_MAX));
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,0.0));
-            ImGui::Begin("Map");
+            ImGui::Begin("Map", NULL, ImGuiWindowFlags_NoScrollbar);
                 ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
                 // Toggles for color channel filter
@@ -304,12 +309,16 @@ int main()
                 float window_visible_x = ImGui::GetContentRegionAvail().x;
                 unsigned int elementNum = 1; // number of elements from the left + next element
                 const float elementSize = 75.0f;
+                const float padding = 00.0f;
+                ImGui::Dummy(ImVec2(2.0,0.0));
+                ImGui::Dummy(ImVec2(5.0,5.0)); ImGui::SameLine();
                 ImGui::Checkbox("Red", &redChannel);
                 if(elementSize*(elementNum+1) < window_visible_x ){ // is next element past window edge
                     ImGui::SameLine(elementSize*elementNum);
                     elementNum++;
                 }else{
                     elementNum = 1;
+                    ImGui::Dummy(ImVec2(5.0,5.0)); ImGui::SameLine();
                 }
 
                 ImGui::Checkbox("Green", &greenChannel);
@@ -318,6 +327,7 @@ int main()
                     elementNum++;
                 }else{
                     elementNum = 1;
+                    ImGui::Dummy(ImVec2(5.0,5.0)); ImGui::SameLine();
                 }
 
                 ImGui::Checkbox("Blue", &blueChannel);
@@ -326,6 +336,7 @@ int main()
                     elementNum++;
                 }else{
                     elementNum = 1;
+                    ImGui::Dummy(ImVec2(5.0,5.0)); ImGui::SameLine();
                 }
 
                 ImGui::Checkbox("Alpha", &alphaChannel);
@@ -334,11 +345,12 @@ int main()
                     elementNum++;
                 }else{
                     elementNum = 1;
+                    ImGui::Dummy(ImVec2(5.0,5.0)); ImGui::SameLine();
                 }
 
                 ImGui::Checkbox("Render Alpha Only", &alphaOnly);
 
-
+                ImGui::Dummy(ImVec2(2.0,0.0));
                 //Create a struct to pass into callback function
                 struct mapCallbackArguments{
                     Shader* shaderPtr;
@@ -377,14 +389,19 @@ int main()
                         glUniformMatrix4fv(glGetUniformLocation(arguments->shaderPtr->ID, "ProjMtx"), 1, GL_FALSE, &ortho_projection[0][0]);
                     }, (void*)callback_Args_Ptr);
 
-                float mapSize = std::min(ImGui::GetContentRegionAvail().x,ImGui::GetContentRegionAvail().y);
+                float mapSize = ImGui::GetContentRegionAvail().x;
+
+                ImGui::SetWindowSize(ImVec2(ImGui::GetWindowWidth(), ImGui::GetItemRectMax().y - ImGui::GetWindowPos().y + mapSize + 1));
+
                 ImGui::Image((void*)(intptr_t)heightMap, ImVec2(mapSize, mapSize), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
                 draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+                ImGui::Image((void*)(intptr_t)playerIcon, ImVec2(16,16), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
             ImGui::End();
             ImGui::PopStyleVar();
-            ImGui::PopStyleVar();
 
-            ImGui::ShowMetricsWindow(); //TODO add to debug menu
+            if(metricsWindowToggle){ImGui::ShowMetricsWindow();}
+
+            if(demoWindowToggle){ImGui::ShowDemoWindow();}
 
             //render ImGui
             ImGui::Render();
