@@ -16,8 +16,8 @@
 #include <string>
 #include <math.h>
 #include <vector>
-#include<type_traits>
-#include<utility>
+#include <type_traits>
+#include <utility>
 
 #include "include/shader_s.h"
 #include "include/camera.h"
@@ -26,11 +26,13 @@
 #define GLFW_DLL
 
 
+
 //Function Delectations
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
+ImVec2 dirtyImVec2Convert(glm::vec2 v);
 unsigned int loadTexture(char const* filepath, GLint formatColor, GLint wrappingParam = GL_REPEAT);
 
 
@@ -274,7 +276,7 @@ int main()
                 ImGui::Text(positionStr.c_str());
                 positionStr = "FPS:" + std::to_string(FPS);
                 ImGui::Text(positionStr.c_str());
-                positionStr = "Pitch:" + std::to_string(camera.Pitch);
+                positionStr = "Yaw:" + std::to_string(camera.Yaw);
                 ImGui::Text(positionStr.c_str());
             ImGui::End();
 
@@ -309,7 +311,6 @@ int main()
                 float window_visible_x = ImGui::GetContentRegionAvail().x;
                 unsigned int elementNum = 1; // number of elements from the left + next element
                 const float elementSize = 75.0f;
-                const float padding = 00.0f;
                 ImGui::Dummy(ImVec2(2.0,0.0));
                 ImGui::Dummy(ImVec2(5.0,5.0)); ImGui::SameLine();
                 ImGui::Checkbox("Red", &redChannel);
@@ -391,11 +392,30 @@ int main()
 
                 float mapSize = ImGui::GetContentRegionAvail().x;
 
+                //Resize window to remove extra window space to fit map
                 ImGui::SetWindowSize(ImVec2(ImGui::GetWindowWidth(), ImGui::GetItemRectMax().y - ImGui::GetWindowPos().y + mapSize + 1));
 
                 ImGui::Image((void*)(intptr_t)heightMap, ImVec2(mapSize, mapSize), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
-                draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
-                ImGui::Image((void*)(intptr_t)playerIcon, ImVec2(16,16), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
+                draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr); // reset shader
+
+                // Draw playericon on mini map
+                const float gameSize = (Divisions * Chunk_Width);
+
+                const float halfIconSize = std::max(16.0f, std::min(mapSize/15.0f, 30.0f))/2.0f; // map icon size between 16-30 pixels scaled by dividing size of map by some factor that looks good
+                // rotation matrix (camera -90 is north and rotates the wrong way so it must be corrected by subtracting 90 and taking the negitive
+                glm::mat2 rotMatrix = glm::mat2(glm::vec2(cos(glm::radians(-camera.Yaw - 90)),sin(glm::radians(-camera.Yaw - 90))),glm::vec2(-sin(glm::radians(-camera.Yaw - 90)),cos(glm::radians(-camera.Yaw - 90))));
+                glm::vec2 normalizedIconPos = glm::vec2(camera.Position.x /gameSize, (camera.Position.z+gameSize)/gameSize); //(0,0) is top left, (1,1) is bottom right
+                glm::vec2 iconCenter = glm::vec2(ImGui::GetItemRectMin().x + (mapSize * normalizedIconPos.x), ImGui::GetItemRectMin().y + (mapSize * normalizedIconPos.y));
+                glm::vec2 a = glm::vec2(-halfIconSize,-halfIconSize) * rotMatrix + iconCenter;
+                glm::vec2 b = glm::vec2(-halfIconSize, halfIconSize) * rotMatrix + iconCenter;
+                glm::vec2 c = glm::vec2( halfIconSize, halfIconSize) * rotMatrix + iconCenter;
+                glm::vec2 d = glm::vec2( halfIconSize,-halfIconSize) * rotMatrix + iconCenter;
+
+                draw_list->PushClipRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), true); //Clip player icon to only with in map
+                // draw quad order: a>b>c  a>c>d
+                // a is top left, b is bottom left, c is bottom right, d is top right
+                draw_list->AddImageQuad((void*)(intptr_t)playerIcon, dirtyImVec2Convert(a), dirtyImVec2Convert(b), dirtyImVec2Convert(c), dirtyImVec2Convert(d), ImVec2(0.0f,1.0f),ImVec2(0.0f,0.0f), ImVec2(1.0f,0.0f), ImVec2(1.0f,1.0f));
+                draw_list->PopClipRect();
             ImGui::End();
             ImGui::PopStyleVar();
 
@@ -524,6 +544,11 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
+}
+
+ImVec2 dirtyImVec2Convert(glm::vec2 v){
+    // a dirty way to go from GLM vec2 to ImVec2 because I can be assed to remember how to add operators in another namespace
+    return ImVec2(v.x,v.y);
 }
 
 unsigned int loadTexture(char const* filepath, GLint formatColor, GLint wrappingParam){
