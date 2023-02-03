@@ -4,6 +4,8 @@
 uniform sampler2D heightMap;  // the texture corresponding to our height map
 uniform float heightScale; // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
 uniform float uTexelSize; // 1/total size of terrain
+uniform float nearPlane;
+uniform float farPlane;
 
 in float Height; //Height from Evaluation Shader
 in vec2 HeightMapCoords;
@@ -12,6 +14,12 @@ in vec4 mpvResult;
 out vec4 FragColor;
 
 vec3 lightDir = normalize(vec3(0.0f, 0.5f, -0.5f));
+
+float LinearizeDepth(float depth) 
+{
+    float z = depth * 2.0 - 1.0; // back to NDC 
+    return (2.0 * nearPlane * farPlane) / (farPlane + nearPlane - z * (farPlane - nearPlane));	
+}
 
 vec4 cubic(float v){
     vec4 n = vec4(1.0, 2.0, 3.0, 4.0) - v;
@@ -83,8 +91,10 @@ void main()
 	}else{
 		col = vec4(0.8902f, 0.9059f, 0.9294f, 1.0f);//snow
 	}
-	
 	float diff = max(dot(normal, lightDir), 0.0);
-	
-	FragColor = vec4((vec3(0.207f, 0.318f, 0.361f) + diff) * col.rgb,1.0f);
+	float depth = LinearizeDepth(gl_FragCoord.z) / farPlane; // divide by far for demonstration
+	float fogFactor = 1/pow(2,pow(depth*4.0f,2));
+	vec4 fogColor = vec4(0.788f,0.906f,1.0f,1.0f);
+    //FragColor = vec4(vec3(depth), 1.0);
+	FragColor = mix(fogColor,vec4((vec3(0.207f, 0.318f, 0.361f) + diff) * col.rgb,1.0f), fogFactor);
 }

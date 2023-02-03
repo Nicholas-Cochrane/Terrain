@@ -152,6 +152,10 @@ int main()
     // Enable Back Face Culling
     glEnable(GL_CULL_FACE);
 
+    // Set up variables for various shaders and such
+    float nearPlane = 0.2f;
+    float farPlane = 50000.0f;
+
     // Texture setup and loading
     //---------------------------
     unsigned int texture1 = loadTexture("textures/uv.png", GL_RGB);
@@ -168,7 +172,7 @@ int main()
     const int Meter_Scale = 110000; // scale of texture in meters
     const int Max_Height = 3997;// height of brightest pixel in texture
     const int Patchs_Per_Edge = 50;
-    const int Divisions = 200/Patchs_Per_Edge;
+    const int Divisions = 400/Patchs_Per_Edge;
     const float Chunk_Width = 64.0f*Patchs_Per_Edge;
     for(int x = 0; x < Divisions; x++){
         for(int z = 0; z < Divisions; z++){// note: -z is forward in coord space
@@ -184,6 +188,9 @@ int main()
     tessShader->use();
     tessShader->setFloat("uTexelSize", 1.0f/ (Divisions * Chunk_Width)); // 1/total size of terrain
     tessShader->setFloat("heightScale", ((Divisions*Chunk_Width)/Meter_Scale) * Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
+    tessShader->setFloat("nearPlane", nearPlane);
+    tessShader->setFloat("farPlane", farPlane);
+
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
@@ -230,7 +237,7 @@ int main()
         { // if window is minimized do not render (Rendering while at resolution 0x0 cause glm::matix_clip_space.inl assertion to fail)
 
             //glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
-            glClearColor(0.207f, 0.318f, 0.361f, 1.0f);
+            glClearColor(0.502,0.725,0.988, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             //set up new frame for ImGui
@@ -249,10 +256,10 @@ int main()
             //tessShader.setMat4("view", view);
 
             //View -> Projection
-            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), 0.1f, 50000.0f);
+            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), nearPlane, farPlane);
             //tessShader.setMat4("projection", projection);
 
-            glm::mat4 projection2 = glm::perspective(glm::radians(40.0f), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), 0.1f, 50000.0f);
+            glm::mat4 projection2 = glm::perspective(glm::radians(40.0f), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), nearPlane, farPlane);
 
             //send player position to shader
             glUniform4fv(glGetUniformLocation(tessShader->ID, "camPos"), 1, glm::value_ptr(glm::vec4(camera.Position, 1.0f)));
@@ -278,6 +285,7 @@ int main()
                 ImGui::Text(positionStr.c_str());
                 positionStr = "Yaw:" + std::to_string(camera.Yaw);
                 ImGui::Text(positionStr.c_str());
+                ImGui::SliderFloat("Speed", &camera.MovementSpeed, 0.1f, 1000.0f);
             ImGui::End();
 
             static bool metricsWindowToggle = false;
@@ -291,6 +299,8 @@ int main()
                     tessShader->use();
                     tessShader->setFloat("uTexelSize", 1.0f/ (Divisions * Chunk_Width)); // 1/total size of terrain
                     tessShader->setFloat("heightScale", ((Divisions * Chunk_Width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
+                    tessShader->setFloat("nearPlane", nearPlane);
+                    tessShader->setFloat("farPlane", farPlane);
                 }
                 ImGui::Checkbox("Metrics Window", &metricsWindowToggle);
                 ImGui::Checkbox("Demo Window", &demoWindowToggle);
