@@ -93,7 +93,7 @@ void main()
 	}
 	float diff = max(dot(normal, lightDir), 0.0);
 	float depth = LinearizeDepth(gl_FragCoord.z) / farPlane; // divide by far for demonstration
-	float fogFactor = 1/pow(2,pow(depth*4.0f,2));
+	float fogFactor = 1/pow(2,pow(depth*10.0f,1.4));
 	vec4 fogColor = vec4(0.788f,0.906f,1.0f,1.0f);
     //FragColor = vec4(vec3(depth), 1.0);
 	FragColor = mix(fogColor,vec4((vec3(0.207f, 0.318f, 0.361f) + diff) * col.rgb,1.0f), fogFactor);
