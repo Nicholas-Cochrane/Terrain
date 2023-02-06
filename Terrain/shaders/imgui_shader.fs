@@ -17,6 +17,6 @@ void main()
 		float alphaChannel = texture(heightMap, Frag_UV).a;
 		Out_Color = vec4(alphaChannel,alphaChannel,alphaChannel,1);
 	}else{
-		Out_Color = texture(heightMap, Frag_UV) * channels;
+		Out_Color = texture(heightMap, Frag_UV).rgba * channels + vec4(0,0,0,(1-channels.a)*1);
 	}
 }

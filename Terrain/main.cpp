@@ -13,6 +13,7 @@
 
 
 #include <iostream>
+#include <stdlib.h>
 #include <string>
 #include <math.h>
 #include <vector>
@@ -69,7 +70,7 @@ unsigned int curr_scr_width= SCR_WIDTH;
 unsigned int curr_scr_height = SCR_HEIGHT;
 
 // camera and mouse input
-Camera camera(glm::vec3(0.0f, 2.0f, 3.0f));
+Camera camera(glm::vec3(0.0f, 500.0f, 3.0f));
 float mouseLastX = SCR_WIDTH / 2.0f;
 float mouseLastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true; // if this is the first mouse input
@@ -192,40 +193,56 @@ int main()
     unsigned int playerIcon = loadTexture("textures/map arrow.png", GL_RGBA, GL_CLAMP_TO_EDGE);
 
     //Compute Shader Output Texture
-    unsigned int computeTexture;
-    unsigned int computeTexWidth= 512;
-    unsigned int computeTexHeight= 512;
+    unsigned int computeHightMap;
+    unsigned int computeHMWidth= 12800;
+    unsigned int computeHMHeight= 12800;
 
-	glGenTextures(1, &computeTexture);
+	glGenTextures(1, &computeHightMap);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, computeTexture);
+	glBindTexture(GL_TEXTURE_2D, computeHightMap);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, computeTexWidth, computeTexHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, computeHMWidth, computeHMHeight, 0, GL_RG, GL_FLOAT, NULL);
 
-	glBindImageTexture(0, computeTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+	glBindImageTexture(0, computeHightMap, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RG32F);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, computeTexture);
+	glBindTexture(GL_TEXTURE_2D, computeHightMap);
+
+	//compute height map
+	int seed = rand();
+	seed = rand(); // rand uses UTC time for its seed so it must be called twice
+	std::cout << "Seed:" << seed << std::endl;
+	imageGenShader->use();
+	imageGenShader->setInt("seed", seed);
+	glUniform2uiv(glGetUniformLocation(imageGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(computeHMWidth,computeHMHeight)));
+	imageGenShader->setUInt("texHeight",computeHMHeight);
+	imageGenShader->setUInt("texWidth",computeHMWidth);
+    glDispatchCompute((unsigned int)computeHMWidth, (unsigned int)computeHMHeight, 1);
+
+    // make sure writing to image has finished before read
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    //glGenerateMipmap(GL_TEXTURE_2D);
+
 
 
     //Object Creation
     //----------------
     //create chunks
     std::vector<TessChunk*> chunkList;
-    const int Meter_Scale = 110000; // scale of texture in meters
-    const int Max_Height = 3997;// height of brightest pixel in texture
+    const int Meter_Scale = computeHMHeight; // scale of texture in meters
+    const int Max_Height = 1000;// height of brightest pixel in texture
     const int Patchs_Per_Edge = 50;
-    const int Divisions = 400/Patchs_Per_Edge;
+    const int Divisions = 200/Patchs_Per_Edge; // 800 is 51200
     const float Chunk_Width = 64.0f*Patchs_Per_Edge;
     for(int x = 0; x < Divisions; x++){
         for(int z = 0; z < Divisions; z++){// note: -z is forward in coord space
             chunkList.push_back(new TessChunk(glm::vec3(x * Chunk_Width ,0.0f,-z * Chunk_Width) // root of chunk (0,0) with x+ and z-
                                               , Chunk_Width / Patchs_Per_Edge //width of each patch
                                               , Patchs_Per_Edge // number of patches per edge
-                                              , texture1, heightMap // texture and height map texture
+                                              , texture1, computeHightMap // texture and height map texture
                                               , glm::vec2( (1.0f/Divisions) * x , (1.0f/Divisions) * z ) // UV coord of root
                                               , (1.0f/Divisions))); //uv cord offset (UV coord from bottom to top/ left to right)
         }
@@ -233,7 +250,7 @@ int main()
     // set Tess Uniforms
     tessShader->use();
     tessShader->setFloat("uTexelSize", 1.0f/ (Divisions * Chunk_Width)); // 1/total size of terrain
-    tessShader->setFloat("heightScale", ((Divisions*Chunk_Width)/Meter_Scale) * Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
+    tessShader->setFloat("heightScale", Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
     tessShader->setFloat("nearPlane", nearPlane);
     tessShader->setFloat("farPlane", farPlane);
 
@@ -313,16 +330,6 @@ int main()
                 chunkList.at(i)->draw(*tessShader, view, projection, projection2);
             }
 
-            //compute TEMP TODO DELETE OR MOVE
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, computeTexture);
-
-            imageGenShader->use();
-            glDispatchCompute((unsigned int)computeTexWidth, (unsigned int)computeTexHeight, 1);
-
-            // make sure writing to image has finished before read
-            glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
 
             //Create ImGui windows
             //--------------------
@@ -338,7 +345,7 @@ int main()
                 ImGui::Text(positionStr.c_str());
                 positionStr = "Yaw:" + std::to_string(camera.Yaw);
                 ImGui::Text(positionStr.c_str());
-                ImGui::SliderFloat("Speed", &camera.MovementSpeed, 0.1f, 1000.0f);
+                ImGui::SliderFloat("Speed", &camera.MovementSpeed, 0.1f, 1000.0f, "%.3f", ImGuiSliderFlags_Logarithmic);
             ImGui::End();
 
             static bool metricsWindowToggle = false;
@@ -351,7 +358,7 @@ int main()
                     //Set uniforms
                     tessShader->use();
                     tessShader->setFloat("uTexelSize", 1.0f/ (Divisions * Chunk_Width)); // 1/total size of terrain
-                    tessShader->setFloat("heightScale", ((Divisions * Chunk_Width)/110000) * 3997); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
+                    tessShader->setFloat("heightScale", Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
                     tessShader->setFloat("nearPlane", nearPlane);
                     tessShader->setFloat("farPlane", farPlane);
                 }
@@ -426,7 +433,7 @@ int main()
                 callback_Args_Ptr = &callback_Args; // set struct pointer to point to a struct
                 //set up arguments to be passed to callback function
                 callback_Args.shaderPtr = mapShader;
-                callback_Args.channels = glm::vec4(redChannel, blueChannel, greenChannel, alphaChannel);
+                callback_Args.channels = glm::vec4(redChannel, greenChannel, blueChannel, alphaChannel);
                 callback_Args.alphaOnly = alphaOnly;
 
                 draw_list->AddCallback([](const ImDrawList* parent_list, const ImDrawCmd* cmd)
@@ -458,7 +465,7 @@ int main()
                 //Resize window to remove extra window space to fit map
                 ImGui::SetWindowSize(ImVec2(ImGui::GetWindowWidth(), ImGui::GetItemRectMax().y - ImGui::GetWindowPos().y + mapSize + 1));
 
-                ImGui::Image((void*)(intptr_t)heightMap, ImVec2(mapSize, mapSize), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
+                ImGui::Image((void*)(intptr_t)computeHightMap, ImVec2(mapSize, mapSize), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
                 draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr); // reset shader
 
                 // Draw playericon on mini map

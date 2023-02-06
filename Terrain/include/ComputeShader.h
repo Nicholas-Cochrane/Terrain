@@ -75,6 +75,11 @@ class ComputeShader
             glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
         }
         // ------------------------------------------------------------------------
+        void setUInt(const std::string &name, int value) const
+        {
+            glUniform1ui(glGetUniformLocation(ID, name.c_str()), value);
+        }
+        // ------------------------------------------------------------------------
         void setFloat(const std::string &name, float value) const
         {
             glUniform1f(glGetUniformLocation(ID, name.c_str()), value);

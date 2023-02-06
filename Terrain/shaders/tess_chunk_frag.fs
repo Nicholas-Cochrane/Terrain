@@ -75,16 +75,18 @@ void main()
 	vec3 normal = normalize(vec3(down - up, 2.0, left - right));
 	float slope = max(dot(normal, vec3(0.0f,1.0f,0.0f)), 0.0f); // slope from up
 	
-	vec4 col = vec4(0.7176f, 0.5922f, 0.4353f, 1.0); //vec4(h, h, h, 1.0);
+	vec4 col = vec4(0.7176f, 0.5922f, 0.4353f, 1.0f); //vec4(h, h, h, 1.0);
 	
-	if(slope < 0.7854){ // >45 degrees 
+	if(h < 0.0){
+		col = vec4(0.098f,0.137f,0.659f, 1.0f);
+	}else if(slope < 0.7854){ // >45 degrees 
 		col = vec4(0.6627f, 0.6314f, 0.5725, 1.0f);//rock
 	}else if(h < 0.1829f){ //731m / 3997m
-		col = vec4(0.7176f, 0.5922f, 0.4353f, 1.0); // grass
+		col = vec4(0.7176f, 0.5922f, 0.4353f, 1.0f); // grass
 	}else if(h < 0.6880f){//2750m / 3997m
 		//1158m/ 3997m = 0.29
 		//(x-0.1829)/(0.29-0.1829)  blend from grass to tree from 731m to 1158m
-		col = mix(vec4(0.7176f, 0.5922f, 0.4353f, 1.0), vec4(0.1647f, 0.1961f ,0.1569f, 1.0f),clamp((h-0.1829)/(0.29-0.1829), 0.0f, 1.0f));
+		col = mix(vec4(0.7176f, 0.5922f, 0.4353f, 1.0f), vec4(0.1647f, 0.1961f ,0.1569f, 1.0f),clamp((h-0.1829)/(0.29-0.1829), 0.0f, 1.0f));
 		//col = vec4( 0.1647f, 0.1961f ,0.1569f, 1.0f); // trees
 	}else if(h < 0.8694f){//3475m / 3997m
 		col = vec4(0.6627f, 0.6314f, 0.5725, 1.0f);//rock
