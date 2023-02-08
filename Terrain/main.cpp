@@ -194,8 +194,8 @@ int main()
 
     //Compute Shader Output Texture
     unsigned int computeHightMap;
-    unsigned int computeHMWidth= 12800;
-    unsigned int computeHMHeight= 12800;
+    unsigned int computeHMWidth= 9600;
+    unsigned int computeHMHeight= 9600;
 
 	glGenTextures(1, &computeHightMap);
 	glActiveTexture(GL_TEXTURE0);
@@ -214,6 +214,7 @@ int main()
 	//compute height map
 	int seed = rand();
 	seed = rand(); // rand uses UTC time for its seed so it must be called twice
+	seed = 46752055;// TEMP DELETE  ME
 	std::cout << "Seed:" << seed << std::endl;
 	imageGenShader->use();
 	imageGenShader->setInt("seed", seed);
@@ -361,6 +362,21 @@ int main()
                     tessShader->setFloat("heightScale", Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
                     tessShader->setFloat("nearPlane", nearPlane);
                     tessShader->setFloat("farPlane", farPlane);
+                }
+                if (ImGui::Button("Reload Compute Shader")){
+                    delete imageGenShader;
+                    imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
+                    //Set uniforms
+                    imageGenShader->use();
+                    seed = rand();
+                    imageGenShader->setInt("seed", seed);
+                    glUniform2uiv(glGetUniformLocation(imageGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(computeHMWidth,computeHMHeight)));
+                    imageGenShader->setUInt("texHeight",computeHMHeight);
+                    imageGenShader->setUInt("texWidth",computeHMWidth);
+                    glDispatchCompute((unsigned int)computeHMWidth, (unsigned int)computeHMHeight, 1);
+
+                    // make sure writing to image has finished before read
+                    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
                 }
                 ImGui::Checkbox("Metrics Window", &metricsWindowToggle);
                 ImGui::Checkbox("Demo Window", &demoWindowToggle);
