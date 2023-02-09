@@ -22,8 +22,7 @@ uvec3 pcg3d(uvec3 v){
 	return v;
 }
 
-vec2 hash(vec2 p ) // relies on artifacts and may give different on different systems 
-{
+vec2 hash(vec2 p ){ // relies on artifacts and may give different on different systems 
 	p = vec2( dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)) );
 	p = -1.0 + 2.0*fract(sin(p)*43758.5453123);
 	return sin(p*6.283 + seed);
@@ -37,6 +36,11 @@ float fnoise2d(vec2 uv){
 vec2 f2noise2d(vec2 uv){
 	uvec3 input = uvec3(floatBitsToInt(uv),seed); 
 	uvec3 value = pcg3d(input);
+	return (vec2(float(value.r),float(value.g))/uvec2(MAX_UINT,MAX_UINT)-0.5) * 2;
+}
+
+vec2 f2noise2di(uvec2 uv){
+	uvec3 value = pcg3d(uvec3(uv,seed));
 	return (vec2(float(value.r),float(value.g))/uvec2(MAX_UINT,MAX_UINT)-0.5) * 2;
 }
 
@@ -71,9 +75,7 @@ float valueNoise(vec2 uv){
 	return noiseValue;
 }
 
-
-float perlinNoise(vec2 p)
-{
+float perlinNoise(vec2 p){
 	vec2 localID = floor(p);
     vec2 localUV = fract(p);
     
@@ -118,12 +120,27 @@ float fbm(vec2 uv){ // fractal brownian motion
     return noiseValue;
 }
 
+
+float sdSegment( in vec2 p, in vec2 a, in vec2 b ){
+    vec2 pa = p-a, ba = b-a;
+    float h = clamp( dot(pa,ba)/dot(ba,ba), 0.0, 1.0 );
+    return length( pa - ba*h );
+}
+
+float lineDomainWarp(vec2 uv){
+	vec2 a = f2noise2di(uvec2(seed+1,seed+2));
+	a.y *= sign(-a.x) + sign(-a.y); // if both are positive flip y coord sign
+	float line = sdSegment(uv,vec2(0.0,0.0),a);
+	return line;
+}
 	
 void main() {
 	vec4 value = vec4(0.0, 0.0, 0.0, 1.0);
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
 	ivec2 origCoord = texelCoord - ivec2(texRes.x/2,texRes.y/2);
 	vec2 uv = vec2(float(texelCoord.x)/texRes.x,float(texelCoord.y)/texRes.y);
+	vec2 flippeduv = (-uv+1.0);
+	bool randBool = bool(ceil(f2noise2di(uvec2(seed+1,seed+2)).y));
 	float r = float(pcg3d(uvec3(uint(texelCoord.x),uint(texelCoord.y),seed)).r)/MAX_UINT;
 	
 	
@@ -140,8 +157,13 @@ void main() {
 	//valueNoise(uv + smoothNoise(uv*128.0)*0.002) + perlinNoise(uv*256.0)*0.00452;
 	//value.r = (max(0.005,abs(valueNoise(uv*1.2))));
 	
-	value.r = (max(0.005,abs(valueNoise(uv*1.2 + smoothNoise(uv*128.0)*0.002) + perlinNoise(uv*256.0)*0.00452)));
-	value.g = octPNoise(uv);
+	//for fjord like islands
+	//vec2 randuv = randBool? -uv+1.0 : uv;
+	//value.r = octPNoise((randuv)+lineDomainWarp(randuv))*1-dist;
+	
+	vec2 randuv = randBool? -uv+1.0 : uv;
+	value.r = octPNoise((randuv)+lineDomainWarp(randuv))*1-dist;
+	value.g = 0.0;
 	//value.rg = fract(uv*10);
     imageStore(imgOutput, texelCoord, value);
 }
