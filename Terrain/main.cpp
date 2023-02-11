@@ -368,7 +368,7 @@ int main()
                     imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
                     //Set uniforms
                     imageGenShader->use();
-                    seed = rand();
+                    //seed = rand();
                     imageGenShader->setInt("seed", seed);
                     glUniform2uiv(glGetUniformLocation(imageGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(computeHMWidth,computeHMHeight)));
                     imageGenShader->setUInt("texHeight",computeHMHeight);

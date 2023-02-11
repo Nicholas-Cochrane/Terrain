@@ -75,6 +75,23 @@ float valueNoise(vec2 uv){
 	return noiseValue;
 }
 
+float octVNoiseLoop(vec2 uv, float octaves){
+	// recomened 8 to 11 octaves
+    float a = 4.0;
+	float b = 1.0;
+	float normalizer = 0;
+	float noiseValue = 0.0;
+	
+	for(int i = 0; i < octaves; i++){
+		noiseValue += smoothNoise(uv*a)*b;
+		normalizer += b;
+		a *= 2.0;
+		b *= 0.5;
+	}
+	noiseValue /= normalizer;
+	return noiseValue;
+}
+
 float perlinNoise(vec2 p){
 	vec2 localID = floor(p);
     vec2 localUV = fract(p);
@@ -104,7 +121,24 @@ float octPNoise(vec2 uv){
 	return noiseValue;
 }
 
-float fbm(vec2 uv){ // fractal brownian motion
+float octPNoiseLoop(vec2 uv, float octaves){
+	// recomened 8 to 10 octaves
+    float a = 4.0;
+	float b = 1.0;
+	float normalizer = 0;
+	float noiseValue = 0.0;
+	
+	for(int i = 0; i < octaves; i++){
+		noiseValue += perlinNoise(uv*a)*b;
+		normalizer += b;
+		a *= 2.0;
+		b *= 0.5;
+	}
+	noiseValue /= normalizer;
+	return noiseValue;
+}
+
+float fbm(vec2 uv){ // fractal brownian motion (alt mulit octave noise function)
 	float noiseValue = 0.0;
     float a = 0.5;
 
@@ -120,12 +154,12 @@ float fbm(vec2 uv){ // fractal brownian motion
     return noiseValue;
 }
 
-
 float sdSegment( in vec2 p, in vec2 a, in vec2 b ){
     vec2 pa = p-a, ba = b-a;
     float h = clamp( dot(pa,ba)/dot(ba,ba), 0.0, 1.0 );
     return length( pa - ba*h );
 }
+
 
 float lineDomainWarp(vec2 uv){
 	vec2 a = f2noise2di(uvec2(seed+1,seed+2));
@@ -154,15 +188,14 @@ void main() {
 	//value.r = octPNoise(uv+dist*0.8);
 	
 	//for range
-	//valueNoise(uv + smoothNoise(uv*128.0)*0.002) + perlinNoise(uv*256.0)*0.00452;
-	//value.r = (max(0.005,abs(valueNoise(uv*1.2))));
+	//value.r = octVNoiseLoop(uv+perlinNoise(uv*64)*0.003, 8) + octPNoiseLoop(uv*128.0, 3)*0.00252;
+	//value.r = (max(0.005,abs(octVNoiseLoop(uv*1.2, 8))));
 	
 	//for fjord like islands
 	//vec2 randuv = randBool? -uv+1.0 : uv;
-	//value.r = octPNoise((randuv)+lineDomainWarp(randuv))*1-dist;
+	//value.r = octPNoiseLoop((randuv)+lineDomainWarp(randuv), 9)*1-dist;
 	
-	vec2 randuv = randBool? -uv+1.0 : uv;
-	value.r = octPNoise((randuv)+lineDomainWarp(randuv))*1-dist;
+	//value.r = octPNoiseLoop(uv, 9);
 	value.g = 0.0;
 	//value.rg = fract(uv*10);
     imageStore(imgOutput, texelCoord, value);
