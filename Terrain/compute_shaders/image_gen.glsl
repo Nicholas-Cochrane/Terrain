@@ -138,21 +138,6 @@ float octPNoiseLoop(vec2 uv, float octaves){
 	return noiseValue;
 }
 
-float fbm(vec2 uv){ // fractal brownian motion (alt mulit octave noise function)
-	float noiseValue = 0.0;
-    float a = 0.5;
-
-    vec2 shift = vec2(100.0);
-    // Rotate to reduce axial bias
-    mat2 rot = mat2(cos(0.5), sin(0.5),
-                    -sin(0.5), cos(0.50));
-    for (int i = 0; i < NUM_OCTAVES; ++i) {
-        noiseValue += a * perlinNoise(uv);
-        uv = rot * uv * 2.0 + shift;
-        a *= 0.5;
-    }
-    return noiseValue;
-}
 
 float sdSegment( in vec2 p, in vec2 a, in vec2 b ){
     vec2 pa = p-a, ba = b-a;
@@ -195,7 +180,7 @@ void main() {
 	//vec2 randuv = randBool? -uv+1.0 : uv;
 	//value.r = octPNoiseLoop((randuv)+lineDomainWarp(randuv), 9)*1-dist;
 	
-	//value.r = octPNoiseLoop(uv, 9);
+	value.r = octPNoiseLoop(uv, 9);
 	value.g = 0.0;
 	//value.rg = fract(uv*10);
     imageStore(imgOutput, texelCoord, value);

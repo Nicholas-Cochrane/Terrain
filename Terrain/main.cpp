@@ -250,7 +250,7 @@ int main()
     }
     // set Tess Uniforms
     tessShader->use();
-    tessShader->setFloat("uTexelSize", 1.0f/ (Divisions * Chunk_Width)); // 1/total size of terrain
+    tessShader->setFloat("uTexelSize", 1.0/computeHMWidth); // 1/total size of terrain  old: 1.0f/ (Divisions * Chunk_Width)
     tessShader->setFloat("heightScale", Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
     tessShader->setFloat("nearPlane", nearPlane);
     tessShader->setFloat("farPlane", farPlane);
@@ -358,7 +358,7 @@ int main()
                     tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
                     //Set uniforms
                     tessShader->use();
-                    tessShader->setFloat("uTexelSize", 1.0f/ (Divisions * Chunk_Width)); // 1/total size of terrain
+                    tessShader->setFloat("uTexelSize", 1.0/computeHMWidth); // 1/total size of terrain
                     tessShader->setFloat("heightScale", Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
                     tessShader->setFloat("nearPlane", nearPlane);
                     tessShader->setFloat("farPlane", farPlane);
@@ -384,7 +384,7 @@ int main()
 
             ImGui::SetNextWindowSizeConstraints(ImVec2(168,264), ImVec2(FLT_MAX,FLT_MAX));
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,0.0));
-            ImGui::Begin("Map", NULL, ImGuiWindowFlags_NoScrollbar);
+            ImGui::Begin("Map", NULL, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
                 ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
                 // Toggles for color channel filter
@@ -393,12 +393,15 @@ int main()
                 static bool blueChannel = true;
                 static bool alphaChannel = true;
                 static bool alphaOnly = false;
+                static bool showMap = true;
 
                 float window_visible_x = ImGui::GetContentRegionAvail().x;
-                unsigned int elementNum = 1; // number of elements from the left + next element
+                unsigned int elementNum = 1; // number of elements from the left + next/current element
                 const float elementSize = 75.0f;
                 ImGui::Dummy(ImVec2(2.0,0.0));
                 ImGui::Dummy(ImVec2(5.0,5.0)); ImGui::SameLine();
+                if (alphaOnly || showMap)
+                    ImGui::BeginDisabled();
                 ImGui::Checkbox("Red", &redChannel);
                 if(elementSize*(elementNum+1) < window_visible_x ){ // is next element past window edge
                     ImGui::SameLine(elementSize*elementNum);
@@ -434,23 +437,40 @@ int main()
                     elementNum = 1;
                     ImGui::Dummy(ImVec2(5.0,5.0)); ImGui::SameLine();
                 }
+                if (alphaOnly || showMap)
+                    ImGui::EndDisabled();
 
+                if (showMap)
+                    ImGui::BeginDisabled();
                 ImGui::Checkbox("Render Alpha Only", &alphaOnly);
+                if (showMap)
+                    ImGui::EndDisabled();
+
+                ImGui::Dummy(ImVec2(5.0,5.0)); ImGui::SameLine();
+
+                ImGui::Checkbox("Show Map", &showMap);
 
                 ImGui::Dummy(ImVec2(2.0,0.0));
+
                 //Create a struct to pass into callback function
                 struct mapCallbackArguments{
                     Shader* shaderPtr;
+                    float uTexelSize;
+                    float heightScale;
                     glm::vec4 channels;
                     bool alphaOnly;
+                    bool showMap;
                 };
 
                 static struct mapCallbackArguments *callback_Args_Ptr, callback_Args;
                 callback_Args_Ptr = &callback_Args; // set struct pointer to point to a struct
                 //set up arguments to be passed to callback function
                 callback_Args.shaderPtr = mapShader;
+                callback_Args.uTexelSize = 1.0/computeHMWidth;//1.0/computeHMWidth;
+                callback_Args.heightScale = Max_Height;
                 callback_Args.channels = glm::vec4(redChannel, greenChannel, blueChannel, alphaChannel);
                 callback_Args.alphaOnly = alphaOnly;
+                callback_Args.showMap = showMap;
 
                 draw_list->AddCallback([](const ImDrawList* parent_list, const ImDrawCmd* cmd)
                     {
@@ -471,7 +491,10 @@ int main()
                         };
 
                         arguments->shaderPtr->use(); // If I remove this line, it works
+                        arguments->shaderPtr->setFloat("uTexelSize", arguments->uTexelSize);
+                        arguments->shaderPtr->setFloat("heightScale", arguments->heightScale);
                         arguments->shaderPtr->setBool("alphaOnly", arguments->alphaOnly);
+                        arguments->shaderPtr->setBool("showMap", arguments->showMap);
                         glUniform4fv(glGetUniformLocation(arguments->shaderPtr->ID, "channels"), 1, glm::value_ptr(arguments->channels));
                         glUniformMatrix4fv(glGetUniformLocation(arguments->shaderPtr->ID, "ProjMtx"), 1, GL_FALSE, &ortho_projection[0][0]);
                     }, (void*)callback_Args_Ptr);
@@ -629,7 +652,9 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 // ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-    camera.ProcessMouseScroll(static_cast<float>(yoffset));
+    if(!ImGui::GetIO().WantCaptureMouse){
+        camera.ProcessMouseScroll(static_cast<float>(yoffset));
+    }
 }
 
 ImVec2 dirtyImVec2Convert(glm::vec2 v){
