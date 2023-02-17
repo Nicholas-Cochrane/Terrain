@@ -368,7 +368,6 @@ int main()
                     imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
                     //Set uniforms
                     imageGenShader->use();
-                    //seed = rand();
                     imageGenShader->setInt("seed", seed);
                     glUniform2uiv(glGetUniformLocation(imageGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(computeHMWidth,computeHMHeight)));
                     imageGenShader->setUInt("texHeight",computeHMHeight);
@@ -378,9 +377,15 @@ int main()
                     // make sure writing to image has finished before read
                     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
                 }
+                std::string SeedButtonText = "Seed:" + std::to_string(seed);
+                if (ImGui::Button(SeedButtonText.c_str())){
+                    seed = rand();
+                }
                 ImGui::Checkbox("Metrics Window", &metricsWindowToggle);
                 ImGui::Checkbox("Demo Window", &demoWindowToggle);
             ImGui::End();
+
+
 
             ImGui::SetNextWindowSizeConstraints(ImVec2(168,264), ImVec2(FLT_MAX,FLT_MAX));
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,0.0));

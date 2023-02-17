@@ -145,6 +145,16 @@ float sdSegment( in vec2 p, in vec2 a, in vec2 b ){
     return length( pa - ba*h );
 }
 
+vec2 smin( float a, float b, float k ){
+    float h = max( k-abs(a-b), 0.0 )/k;
+    float m = h*h*0.5;
+    float s = m*k*(1.0/2.0);
+    return (a<b) ? vec2(a-s,m) : vec2(b-s,1.0-m);
+}
+
+float smax1(float a, float b, float k){
+    return log(exp(k * a) + exp(k * b)) / k;
+}
 
 float lineDomainWarp(vec2 uv){
 	vec2 a = f2noise2di(uvec2(seed+1,seed+2));
@@ -161,27 +171,38 @@ void main() {
 	vec2 flippeduv = (-uv+1.0);
 	bool randBool = bool(ceil(f2noise2di(uvec2(seed+1,seed+2)).y));
 	float r = float(pcg3d(uvec3(uint(texelCoord.x),uint(texelCoord.y),seed)).r)/MAX_UINT;
+	float noise = 0;
 	
 	
 	//mask
     float dist = max(0,sqrt(pow((float(origCoord.x)/texRes.x)*2,2)+ pow((float(origCoord.y)/texRes.y)*2,2))-0.2)*1.2; // dist
     float euclidean = max(0,(pow((float(origCoord.x)/texRes.x)*3.35,2)+ pow((float(origCoord.y)/texRes.y)*3.35,2))/sqrt(2)); //Euclidean
 	float sqrBump = max(0,(pow((float(origCoord.x)/texRes.x)*2,2)) * (pow((float(origCoord.y)/texRes.y)*2,2))); // square bump
+		  sqrBump = max(0,(1.0-pow((float(origCoord.x)/texRes.x)*2,2)) * (1.0-pow((float(origCoord.y)/texRes.y)*2,2)));
 	
 	//for underwater shader ideas
 	//vec2 q = vec2(perlinNoise(uv*2), perlinNoise(uv*2 + vec2(1.0,1.0)));
-	//value.r = octPNoise(uv+dist*0.8);
+	//noise = octPNoise(uv+dist*0.8);
 	
 	//for range
-	//value.r = octVNoiseLoop(uv+perlinNoise(uv*64)*0.003, 8) + octPNoiseLoop(uv*128.0, 3)*0.00252;
-	//value.r = (max(0.005,abs(octVNoiseLoop(uv*1.2, 8))));
+	//noise = octVNoiseLoop(uv+perlinNoise(uv*64)*0.003, 8) + octPNoiseLoop(uv*128.0, 3)*0.00252;
+	//noise = (max(0.005,abs(octVNoiseLoop(uv*1.2, 8))));
+	
+	//for normal islands
+	noise = octPNoiseLoop(uv*0.5, 9)*1.2;
 	
 	//for fjord like islands
 	//vec2 randuv = randBool? -uv+1.0 : uv;
-	//value.r = octPNoiseLoop((randuv)+lineDomainWarp(randuv), 9)*1-dist;
+	//noise = octPNoiseLoop((randuv*0.7)+lineDomainWarp(randuv*0.7), 9);
 	
-	value.r = octPNoiseLoop(uv, 9);
-	value.g = 0.0;
+	if (noise < 0.2 && noise > -0.2){
+		noise = sign(noise) * noise * noise * 5;//TODO Replace with a spline that ends at corect/better slope.
+												// or replace with some post processing
+	}
+	//value.r = noise - smoothstep(0.6,0.99,dist)*0.4;
+	value.r = mix(noise,log(noise+2.16395)-1.15182,smoothstep(0.6,0.99,dist)); // lerp between noise and noise from 0 to -1 on a ln curve
+	value.g = octPNoiseLoop(uv*0.5, 9)*1.2;;
+
 	//value.rg = fract(uv*10);
     imageStore(imgOutput, texelCoord, value);
 }
