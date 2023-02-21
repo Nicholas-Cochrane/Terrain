@@ -56,6 +56,7 @@ GLenum glCheckError_(const char *file, int line)
         }
         std::cout << error << " | " << file << " (" << line << ")" << std::endl;
     }
+    //std::cout << "no error" << " (" << line << ")" << std::endl;
     return errorCode;
 }
 #define glCheckError() glCheckError_(__FILE__, __LINE__)
@@ -165,11 +166,11 @@ int main()
 
 	std::cout << "Number of invocations in a single local work group that may be dispatched to a compute shader " << max_compute_work_group_invocations << std::endl;
 
-
     // Shader compilation
     //---------------------
     Shader* tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
     Shader* mapShader = new Shader("shaders/imgui_shader.vs", "shaders/imgui_shader.fs", NULL, NULL);
+    glCheckError();
     ComputeShader* imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
 
     //SET DRAW MODE TO WIREFRAME
@@ -214,7 +215,7 @@ int main()
 	//compute height map
 	int seed = rand();
 	seed = rand(); // rand uses UTC time for its seed so it must be called twice
-	seed = 46752055;// TEMP DELETE  ME
+	seed = 5003;// TEMP DELETE  ME
 	std::cout << "Seed:" << seed << std::endl;
 	imageGenShader->use();
 	imageGenShader->setInt("seed", seed);
@@ -227,6 +228,39 @@ int main()
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     //glGenerateMipmap(GL_TEXTURE_2D);
 
+    //PBO creation for heightmap GPU->CPU
+    //-----------------------------------
+    /*
+    glCheckError();
+    unsigned int PBOWidth = 8;
+    unsigned char* ptr;
+    unsigned int heightMapReadPBO;
+    unsigned int nbytes = PBOWidth * PBOWidth * sizeof(float);
+    unsigned char* pixels = new unsigned char[nbytes];
+    glGenBuffers(1,&heightMapReadPBO);
+    glBindTexture(GL_TEXTURE_2D, computeHightMap);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, heightMapReadPBO);
+    glCheckError();
+    glBufferData(GL_PIXEL_PACK_BUFFER, nbytes, 0, GL_STREAM_READ);
+    glCheckError();
+    glReadPixels(0, 0, PBOWidth, PBOWidth, GL_RG, GL_FLOAT, 0);
+    glCheckError();
+    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, PBOWidth, PBOWidth, GL_RG, GL_FLOAT, 0);
+    ptr = (unsigned char*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+    glCheckError();
+    if (NULL != ptr) {
+    memcpy(pixels, ptr, nbytes);
+    glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+    }
+
+    std::cout << ' ' << std::endl;
+    for(int i = 0; i < nbytes; i++){
+        std::cout  << (int)pixels[i] << ", ";
+    }
+    std::cout << ' '  <<  std::endl;
+
+    glCheckError();
+*/
 
 
     //Object Creation
@@ -234,9 +268,10 @@ int main()
     //create chunks
     std::vector<TessChunk*> chunkList;
     const int Meter_Scale = computeHMHeight; // scale of texture in meters
-    const int Max_Height = 1000;// height of brightest pixel in texture
+    const int Max_Height = 1400;// height of brightest pixel in texture
     const int Patchs_Per_Edge = 50;
     const int Divisions = 200/Patchs_Per_Edge; // 800 is 51200
+    const int Divisions = 400/Patchs_Per_Edge; // 800 is 51200
     const float Chunk_Width = 64.0f*Patchs_Per_Edge;
     for(int x = 0; x < Divisions; x++){
         for(int z = 0; z < Divisions; z++){// note: -z is forward in coord space
