@@ -166,6 +166,8 @@ int main()
 
 	std::cout << "Number of invocations in a single local work group that may be dispatched to a compute shader " << max_compute_work_group_invocations << std::endl;
 
+	//TODO: add TDR Prevention and Notification of TDR registries [https://learn.microsoft.com/en-us/windows-hardware/drivers/display/tdr-registry-keys]
+
     // Shader compilation
     //---------------------
     Shader* tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
@@ -270,7 +272,6 @@ int main()
     const int Meter_Scale = computeHMHeight; // scale of texture in meters
     const int Max_Height = 1400;// height of brightest pixel in texture
     const int Patchs_Per_Edge = 50;
-    const int Divisions = 200/Patchs_Per_Edge; // 800 is 51200
     const int Divisions = 400/Patchs_Per_Edge; // 800 is 51200
     const float Chunk_Width = 64.0f*Patchs_Per_Edge;
     for(int x = 0; x < Divisions; x++){

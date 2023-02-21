@@ -117,8 +117,10 @@ public:
         // delete the shaders as they're linked into our program now and no longer necessary
         glDeleteShader(vertex);
         glDeleteShader(fragment);
-        glDeleteShader(tessControl);
-        glDeleteShader(tessEvaluation);
+        if(tessCtrlPath && tessEvalPath){
+            glDeleteShader(tessControl);
+            glDeleteShader(tessEvaluation);
+        }
     }
 
     virtual ~Shader(){
