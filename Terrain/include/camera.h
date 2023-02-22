@@ -50,9 +50,6 @@ public:
     float Elevation;
     bool fly = true;
 
-
-    //
-
     // constructor with vectors
     Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM), Elevation(ELEVATION)
     {
@@ -90,15 +87,6 @@ public:
     // processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
     void ProcessKeyboard(Camera_Movement direction, float deltaTime)
     {
-        glm::vec2 normalizedPlayerPos = glm::vec2(Position.x / *gameSize, -Position.z/ *gameSize); //(0,0) is Bottom left, (1,1) is top right
-        if(normalizedPlayerPos.x > 0.0 && normalizedPlayerPos.x < 1.0 &&
-           normalizedPlayerPos.y > 0.0 && normalizedPlayerPos.y < 1.0 &&
-           heightMapStatus != NULL && *heightMapStatus == COMPLETE){
-            // e = array[(y*rowLength + x)*2] (2 skips over green channel
-            Elevation = heightMapArray[static_cast<int>(std::ceil(normalizedPlayerPos.y * *heightMapHeight)* *heightMapWidth + std::ceil(normalizedPlayerPos.x * *heightMapWidth))*2] * *heightMapMaxHeight;
-        }else{
-            Elevation = ELEVATION; //Set Elevation to Default
-        }
 
         float velocity = MovementSpeed * deltaTime;
         if (direction == FORWARD)
@@ -109,6 +97,30 @@ public:
             Position -= Right * velocity;
         if (direction == RIGHT)
             Position += Right * velocity;
+
+        glm::vec2 normalizedPlayerPos = glm::vec2(Position.x / *gameSize, -Position.z/ *gameSize); //(0,0) is Bottom left, (1,1) is top right
+        if(normalizedPlayerPos.x > 0.0 && normalizedPlayerPos.x < 1.0 &&
+           normalizedPlayerPos.y > 0.0 && normalizedPlayerPos.y < 1.0 &&
+           heightMapStatus != NULL && *heightMapStatus == COMPLETE)
+        {
+            float yIntComp, xIntComp;
+            float yFrac = std::modf(normalizedPlayerPos.y * (*heightMapHeight-1), &yIntComp);
+            float xFrac = std::modf(normalizedPlayerPos.x * (*heightMapWidth-1), &xIntComp);
+            int xInt = static_cast<unsigned int>(xIntComp);
+            int yInt = static_cast<unsigned int>(yIntComp);
+
+            // e = array[(y*rowLength + x)*2] (2 skips over green channel
+            float bl = heightMapArray[((yInt * *heightMapWidth) + xInt)*2] * *heightMapMaxHeight;
+            float br = heightMapArray[((yInt * *heightMapWidth) + xInt+1)*2] * *heightMapMaxHeight;
+            float tl = heightMapArray[(((yInt+1) * *heightMapWidth) + xInt)*2] * *heightMapMaxHeight;
+            float tr = heightMapArray[(((yInt+1) * *heightMapWidth) + xInt+1)*2] * *heightMapMaxHeight;
+            float topLerp = tl + (tr - tl) * xFrac;
+            float botLerp = bl + (br - bl) * xFrac;
+            Elevation = botLerp + (topLerp - botLerp) * yFrac;
+
+        }else{
+            Elevation = ELEVATION; //Set Elevation to Default
+        }
 
         if(!fly && !std::isinf(Elevation)){
             Position.y = Elevation + 1.68;

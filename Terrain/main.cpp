@@ -354,7 +354,20 @@ int main()
 
                 positionStr = "FPS:" + std::to_string(FPS);
                 ImGui::Text(positionStr.c_str());
-                positionStr = "Yaw:" + std::to_string(camera.Yaw);
+
+                float yawAngle;
+                float fract =  std::modf(camera.Yaw, &yawAngle);
+                yawAngle = static_cast<int>(yawAngle)%360;
+                if(yawAngle < 0 ) yawAngle += 360;
+                if(yawAngle < 45 || yawAngle > 315){ // East is 0 degrees
+                    positionStr = "Yaw:" + std::to_string(camera.Yaw) + "(East)";
+                }else if(yawAngle < 135){ //South is 90 degrees
+                    positionStr = "Yaw:" + std::to_string(camera.Yaw) + " (South)";
+                }else if(yawAngle < 225){ // West is 180 degrees
+                    positionStr = "Yaw:" + std::to_string(camera.Yaw) + " (West)";
+                } else{ // N is 270 degrees
+                    positionStr = "Yaw:" + std::to_string(camera.Yaw) + " (North)";
+                }
                 ImGui::Text(positionStr.c_str());
                 positionStr = "Pitch:" + std::to_string(camera.Pitch);
                 ImGui::Text(positionStr.c_str());
