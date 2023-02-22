@@ -16,8 +16,11 @@
 #include <stdlib.h>
 #include <string>
 #include <math.h>
+#include <cmath>
+#include <limits>
 #include <vector>
 #include <type_traits>
+#include <cassert>
 #include <utility>
 
 #include "include/shader_s.h"
@@ -25,9 +28,8 @@
 #include "include/camera.h"
 //#include "include/chunk.h"
 #include "include/TessChunk.h"
+#include "include/CustomEnumerators.h"
 #define GLFW_DLL
-
-
 
 //Function Delectations
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -192,13 +194,15 @@ int main()
     // Texture setup and loading
     //---------------------------
     unsigned int texture1 = loadTexture("textures/uv.png", GL_RGB);
-    unsigned int heightMap = loadTexture("textures/0.01344305976942091 (4130) (110km) square.png", GL_RGBA, GL_CLAMP_TO_EDGE);
+    //unsigned int heightMap = loadTexture("textures/0.01344305976942091 (4130) (110km) square.png", GL_RGBA, GL_CLAMP_TO_EDGE);
     unsigned int playerIcon = loadTexture("textures/map arrow.png", GL_RGBA, GL_CLAMP_TO_EDGE);
 
     //Compute Shader Output Texture
     unsigned int computeHightMap;
     unsigned int computeHMWidth= 9600;
     unsigned int computeHMHeight= 9600;
+    float* heightMapCopyArray = new float[computeHMHeight*computeHMWidth*2];
+    Transfer_Status heightMapCopied = NOT_STARTED;
 
 	glGenTextures(1, &computeHightMap);
 	glActiveTexture(GL_TEXTURE0);
@@ -230,50 +234,16 @@ int main()
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     //glGenerateMipmap(GL_TEXTURE_2D);
 
-    //PBO creation for heightmap GPU->CPU
-    //-----------------------------------
-    /*
-    glCheckError();
-    unsigned int PBOWidth = 8;
-    unsigned char* ptr;
-    unsigned int heightMapReadPBO;
-    unsigned int nbytes = PBOWidth * PBOWidth * sizeof(float);
-    unsigned char* pixels = new unsigned char[nbytes];
-    glGenBuffers(1,&heightMapReadPBO);
-    glBindTexture(GL_TEXTURE_2D, computeHightMap);
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, heightMapReadPBO);
-    glCheckError();
-    glBufferData(GL_PIXEL_PACK_BUFFER, nbytes, 0, GL_STREAM_READ);
-    glCheckError();
-    glReadPixels(0, 0, PBOWidth, PBOWidth, GL_RG, GL_FLOAT, 0);
-    glCheckError();
-    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, PBOWidth, PBOWidth, GL_RG, GL_FLOAT, 0);
-    ptr = (unsigned char*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-    glCheckError();
-    if (NULL != ptr) {
-    memcpy(pixels, ptr, nbytes);
-    glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-    }
-
-    std::cout << ' ' << std::endl;
-    for(int i = 0; i < nbytes; i++){
-        std::cout  << (int)pixels[i] << ", ";
-    }
-    std::cout << ' '  <<  std::endl;
-
-    glCheckError();
-*/
-
 
     //Object Creation
     //----------------
     //create chunks
     std::vector<TessChunk*> chunkList;
-    const int Meter_Scale = computeHMHeight; // scale of texture in meters
     const int Max_Height = 1400;// height of brightest pixel in texture
     const int Patchs_Per_Edge = 50;
     const int Divisions = 400/Patchs_Per_Edge; // 800 is 51200
     const float Chunk_Width = 64.0f*Patchs_Per_Edge;
+    const float gameSize = (Divisions * Chunk_Width);//length of map in units
     for(int x = 0; x < Divisions; x++){
         for(int z = 0; z < Divisions; z++){// note: -z is forward in coord space
             chunkList.push_back(new TessChunk(glm::vec3(x * Chunk_Width ,0.0f,-z * Chunk_Width) // root of chunk (0,0) with x+ and z-
@@ -290,6 +260,9 @@ int main()
     tessShader->setFloat("heightScale", Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
     tessShader->setFloat("nearPlane", nearPlane);
     tessShader->setFloat("farPlane", farPlane);
+
+    //Pass height map Variables to Camera
+    camera.passHeightMapData(heightMapCopyArray, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
 
     //imgui
     //-----
@@ -378,10 +351,27 @@ int main()
                 ImGui::Text(positionStr.c_str());
                 positionStr = "Z:" + std::to_string(camera.Position.z);
                 ImGui::Text(positionStr.c_str());
+
                 positionStr = "FPS:" + std::to_string(FPS);
                 ImGui::Text(positionStr.c_str());
                 positionStr = "Yaw:" + std::to_string(camera.Yaw);
                 ImGui::Text(positionStr.c_str());
+                positionStr = "Pitch:" + std::to_string(camera.Pitch);
+                ImGui::Text(positionStr.c_str());
+                positionStr = "FOV:" + std::to_string(camera.Zoom);
+                ImGui::Text(positionStr.c_str());
+
+                glm::vec2 normalizedPlayerPos = glm::vec2(camera.Position.x /gameSize, -camera.Position.z/gameSize); //(0,0) is Bottom left, (1,1) is top right
+                positionStr = "Norm X:" + std::to_string(normalizedPlayerPos.x);
+                ImGui::Text(positionStr.c_str());
+                positionStr = "Norm Y:" + std::to_string(normalizedPlayerPos.y);
+                ImGui::Text(positionStr.c_str());
+
+
+                positionStr = "Elevation:" + std::to_string(camera.Elevation);
+                ImGui::Text(positionStr.c_str());
+                ImGui::Checkbox("noClip", &camera.fly);
+
                 ImGui::SliderFloat("Speed", &camera.MovementSpeed, 0.1f, 1000.0f, "%.3f", ImGuiSliderFlags_Logarithmic);
             ImGui::End();
 
@@ -409,6 +399,8 @@ int main()
                     imageGenShader->setUInt("texHeight",computeHMHeight);
                     imageGenShader->setUInt("texWidth",computeHMWidth);
                     glDispatchCompute((unsigned int)computeHMWidth, (unsigned int)computeHMHeight, 1);
+
+                    heightMapCopied = NOT_STARTED; //Recopy height map to RAM
 
                     // make sure writing to image has finished before read
                     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -549,7 +541,6 @@ int main()
                 draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr); // reset shader
 
                 // Draw playericon on mini map
-                const float gameSize = (Divisions * Chunk_Width);
 
                 const float halfIconSize = std::max(16.0f, std::min(mapSize/15.0f, 30.0f))/2.0f; // map icon size between 16-30 pixels scaled by dividing size of map by some factor that looks good
                 // rotation matrix (camera -90 is north and rotates the wrong way so it must be corrected by subtracting 90 and taking the negitive
@@ -581,6 +572,15 @@ int main()
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         glfwPollEvents();
+
+        //TODO MOVE ME and add in menu integration (or multi threading?)
+        if(heightMapCopied == NOT_STARTED){
+            heightMapCopied = IN_PROGRESS;
+            glBindTexture(GL_TEXTURE_2D, computeHightMap);
+            glGetTexImage(GL_TEXTURE_2D,0,GL_RG, GL_FLOAT, heightMapCopyArray);
+            glCheckError();
+            heightMapCopied = COMPLETE;
+        }
     }
 
 

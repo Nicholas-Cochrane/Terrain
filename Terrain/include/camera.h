@@ -4,8 +4,12 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include "CustomEnumerators.h"
 
 #include <vector>
+#include <cmath>
+#include <cassert>
+#include <limits>
 
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
 enum Camera_Movement {
@@ -20,8 +24,10 @@ const float YAW         = -90.0f;
 const float PITCH       =  0.0f;
 const float SPEED       =  1000.0f;
 const float SENSITIVITY =  0.08f;
-const float ZOOM        =  110.0f;
+const float ZOOM        =  95.0f;
 
+static_assert(std::numeric_limits<float>::is_iec559, "IEEE 754 (ISO IEC559) required"); // Need IEEE 754 for Infinity float
+const float ELEVATION = -std::numeric_limits<float>::infinity();
 
 // An abstract camera class that processes input and calculates the corresponding Euler Angles, Vectors and Matrices for use in OpenGL
 class Camera
@@ -40,9 +46,15 @@ public:
     float MovementSpeed;
     float MouseSensitivity;
     float Zoom;
+    // Player World Interaction
+    float Elevation;
+    bool fly = true;
+
+
+    //
 
     // constructor with vectors
-    Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
+    Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM), Elevation(ELEVATION)
     {
         Position = position;
         WorldUp = up;
@@ -51,7 +63,7 @@ public:
         updateCameraVectors();
     }
     // constructor with scalar values
-    Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
+    Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM), Elevation(ELEVATION)
     {
         Position = glm::vec3(posX, posY, posZ);
         WorldUp = glm::vec3(upX, upY, upZ);
@@ -66,9 +78,28 @@ public:
         return glm::lookAt(Position, Position + Front, Up);
     }
 
+    void passHeightMapData(float *heightMapPtr, unsigned int *height, unsigned int *width, const int* maxHeight, const float* inGameSize, Transfer_Status *status){
+        heightMapArray = heightMapPtr;
+        heightMapHeight = height;
+        heightMapWidth = width;
+        heightMapMaxHeight = maxHeight;
+        gameSize = inGameSize;
+        heightMapStatus = status;
+    }
+
     // processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
     void ProcessKeyboard(Camera_Movement direction, float deltaTime)
     {
+        glm::vec2 normalizedPlayerPos = glm::vec2(Position.x / *gameSize, -Position.z/ *gameSize); //(0,0) is Bottom left, (1,1) is top right
+        if(normalizedPlayerPos.x > 0.0 && normalizedPlayerPos.x < 1.0 &&
+           normalizedPlayerPos.y > 0.0 && normalizedPlayerPos.y < 1.0 &&
+           heightMapStatus != NULL && *heightMapStatus == COMPLETE){
+            // e = array[(y*rowLength + x)*2] (2 skips over green channel
+            Elevation = heightMapArray[static_cast<int>(std::ceil(normalizedPlayerPos.y * *heightMapHeight)* *heightMapWidth + std::ceil(normalizedPlayerPos.x * *heightMapWidth))*2] * *heightMapMaxHeight;
+        }else{
+            Elevation = ELEVATION; //Set Elevation to Default
+        }
+
         float velocity = MovementSpeed * deltaTime;
         if (direction == FORWARD)
             Position += Front * velocity;
@@ -78,6 +109,10 @@ public:
             Position -= Right * velocity;
         if (direction == RIGHT)
             Position += Right * velocity;
+
+        if(!fly && !std::isinf(Elevation)){
+            Position.y = Elevation + 1.68;
+        }
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
@@ -113,6 +148,13 @@ public:
     }
 
 private:
+    unsigned int* heightMapHeight;
+    unsigned int* heightMapWidth;
+    const int* heightMapMaxHeight;
+    const float* gameSize;
+    float* heightMapArray;
+    Transfer_Status* heightMapStatus = NULL;
+
     // calculates the front vector from the Camera's (updated) Euler Angles
     void updateCameraVectors()
     {
