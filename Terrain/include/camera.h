@@ -75,6 +75,11 @@ public:
         return glm::lookAt(Position, Position + Front, Up);
     }
 
+    glm::mat4 GetOriginViewMatrix()
+    {
+        return glm::lookAt(glm::vec3(0,0,0), Front, Up);
+    }
+
     void passHeightMapData(float *heightMapPtr, unsigned int *height, unsigned int *width, const int* maxHeight, const float* inGameSize, Transfer_Status *status){
         heightMapArray = heightMapPtr;
         heightMapHeight = height;

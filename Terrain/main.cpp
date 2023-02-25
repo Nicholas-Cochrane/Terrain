@@ -69,9 +69,6 @@ GLenum glCheckError_(const char *file, int line)
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1027;
 
-unsigned int curr_scr_width= SCR_WIDTH;
-unsigned int curr_scr_height = SCR_HEIGHT;
-
 // camera and mouse input
 Camera camera(glm::vec3(0.0f, 500.0f, 3.0f));
 float mouseLastX = SCR_WIDTH / 2.0f;
@@ -174,6 +171,7 @@ int main()
     //---------------------
     Shader* tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
     Shader* mapShader = new Shader("shaders/imgui_shader.vs", "shaders/imgui_shader.fs", NULL, NULL);
+    Shader* screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs", NULL, NULL);
     glCheckError();
     ComputeShader* imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
 
@@ -190,6 +188,27 @@ int main()
     // Set up variables for various shaders and such
     float nearPlane = 0.2f;
     float farPlane = 50000.0f;
+    float screenQuadVerts[] = {
+    -1.0f, -1.0f, 0.0f,
+     1.0f, -1.0f, 0.0f,
+     1.0f,  1.0f, 0.0f,
+    -1.0f,  1.0f, 0.0f
+    };
+
+    //Set up screenQuad (sky) VBO
+    unsigned int screenQuadVBO, screenQuadVAO;
+    glGenVertexArrays(1, &screenQuadVAO);
+    glGenBuffers(1, &screenQuadVBO);
+    glBindVertexArray(screenQuadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, screenQuadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(screenQuadVerts), screenQuadVerts, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    //unbind
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 
     // Texture setup and loading
     //---------------------------
@@ -310,6 +329,36 @@ int main()
             glClearColor(0.502,0.725,0.988, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+            //get view port info [x, y, width, height]
+            static int *viewportData = new int[4];
+            static float *depthRangeData = new float[2];
+            glGetIntegerv(GL_VIEWPORT, viewportData);
+            glGetFloatv(GL_DEPTH_RANGE, depthRangeData);
+
+            //Global -> view
+            glm::mat4 view = camera.GetViewMatrix();
+            glm::mat4 originView = camera.GetOriginViewMatrix();
+
+            //View -> Projection
+            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(viewportData[2])/ static_cast<float>(viewportData[3]), nearPlane, farPlane);
+            //tessShader.setMat4("projection", projection);
+
+            glm::mat4 projection2 = glm::perspective(glm::radians(40.0f), static_cast<float>(viewportData[2])/ static_cast<float>(viewportData[3]), nearPlane, farPlane);//TODO Remove
+
+            //ScreenQuad (sky) draw
+            //TODO: try stencil mask
+            glDepthMask(GL_FALSE);
+            screenQuadShader->use();
+            screenQuadShader->setFloat("FOV", camera.Zoom);
+            screenQuadShader->setMat4("persMatrix",projection * originView);
+            screenQuadShader->setMat4("invPersMatrix", glm::inverse(projection * originView));
+            glUniform2fv(glGetUniformLocation(screenQuadShader->ID, "depthrange"), 1, glm::value_ptr(glm::vec2(depthRangeData[0], depthRangeData[1])));
+            glUniform4fv(glGetUniformLocation(screenQuadShader->ID, "viewport"), 1, glm::value_ptr(glm::vec4(viewportData[0],viewportData[1],viewportData[2],viewportData[3])));
+            glBindVertexArray(screenQuadVAO);
+            glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+            glBindVertexArray(0);
+            glDepthMask(GL_TRUE);
+
             //set up new frame for ImGui
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
@@ -321,16 +370,6 @@ int main()
             //tessShader.use();
             tessShader->use();
 
-            //Global -> view
-            glm::mat4 view = camera.GetViewMatrix();
-            //tessShader.setMat4("view", view);
-
-            //View -> Projection
-            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), nearPlane, farPlane);
-            //tessShader.setMat4("projection", projection);
-
-            glm::mat4 projection2 = glm::perspective(glm::radians(40.0f), static_cast<float>(curr_scr_width)/ static_cast<float>(curr_scr_height), nearPlane, farPlane);
-
             //send player position to shader
             glUniform4fv(glGetUniformLocation(tessShader->ID, "camPos"), 1, glm::value_ptr(glm::vec4(camera.Position, 1.0f)));
 
@@ -339,7 +378,6 @@ int main()
             for(unsigned int i = 0; i < chunkList.size(); i++){
                 chunkList.at(i)->draw(*tessShader, view, projection, projection2);
             }
-
 
             //Create ImGui windows
             //--------------------
@@ -610,6 +648,9 @@ int main()
         chunkList.at(i) = NULL;
     }
 
+    glDeleteVertexArrays(1, &screenQuadVAO);
+    glDeleteBuffers(1, &screenQuadVBO);
+
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
     glfwTerminate();
@@ -672,8 +713,6 @@ void processInput(GLFWwindow *window)
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     // make sure the viewport matches the new window dimensions; note that width and
-    curr_scr_width = width;
-    curr_scr_height = height;
     glViewport(0, 0, width, height);
 }
 
