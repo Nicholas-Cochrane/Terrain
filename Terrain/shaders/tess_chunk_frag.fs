@@ -6,6 +6,7 @@ uniform float heightScale; // (number of units (or maximum tiles) / texture size
 uniform float uTexelSize; // 1/total size of terrain
 uniform float nearPlane;
 uniform float farPlane;
+uniform vec3 sunDirection;
 
 in float Height; //Height from Evaluation Shader
 in vec2 HeightMapCoords;
@@ -13,7 +14,6 @@ in vec4 mpvResult;
 
 out vec4 FragColor;
 
-vec3 lightDir = normalize(vec3(0.0f, 0.5f, -0.5f));
 
 float LinearizeDepth(float depth) 
 {
@@ -72,7 +72,7 @@ void main()
 	float right = texture(heightMap, HeightMapCoords + vec2( uTexelSize, 0.0)).r * heightScale * 2.0 - 1.0;
 	float up    = texture(heightMap, HeightMapCoords + vec2(0.0,  uTexelSize)).r * heightScale * 2.0 - 1.0;
 	float down  = texture(heightMap, HeightMapCoords + vec2(0.0, -uTexelSize)).r * heightScale * 2.0 - 1.0;
-	vec3 normal = normalize(vec3(down - up, 2.0, left - right));
+	vec3 normal = normalize(vec3(left - right, 2.0, up-down));
 	float slope = max(dot(normal, vec3(0.0f,1.0f,0.0f)), 0.0f); // slope from up
 	
 	vec4 col = vec4(0.7176f, 0.5922f, 0.4353f, 1.0f); //vec4(h, h, h, 1.0);
@@ -93,7 +93,7 @@ void main()
 	}else{
 		col = vec4(0.8902f, 0.9059f, 0.9294f, 1.0f);//snow
 	}
-	float diff = max(dot(normal, lightDir), 0.0);
+	float diff = max(dot(normal, sunDirection), 0.0);
 	float depth = LinearizeDepth(gl_FragCoord.z) / farPlane; // divide by far for demonstration
 	float fogFactor = 1/pow(2,pow(depth*10.0f,1.4));
 	vec4 fogColor = vec4(0.788f,0.906f,1.0f,1.0f);

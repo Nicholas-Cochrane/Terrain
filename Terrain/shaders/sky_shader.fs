@@ -1,12 +1,11 @@
 #version 330 core
 out vec4 FragColor;
-in vec4 vertexColor;
 
-uniform float FOV;
 uniform mat4 persMatrix;
 uniform mat4 invPersMatrix;
 uniform vec4 viewport;
 uniform vec2 depthrange;
+uniform vec3 sunDirection;
 
 vec4 CalcEyeFromWindow(in vec3 windowSpace)
 {
@@ -23,8 +22,17 @@ vec4 CalcEyeFromWindow(in vec3 windowSpace)
 }
 
 void main()
-{
-	vec4 temp = CalcEyeFromWindow(gl_FragCoord.xyz);
-	FragColor = vec4(temp.xyz,1.0);
+{	
+	vec4 rayDir = CalcEyeFromWindow(gl_FragCoord.xyz);
+	
+	vec4 color = vec4(1,0,1,1);
+	
+	if(dot(normalize(rayDir.xyz), sunDirection) > 0.999){
+		color = vec4(1,1,1,1);
+	}else if(rayDir.y < 0.0){
+		color = vec4(0.098f,0.137f,0.659f,1.0f);
+	}
+	
+	FragColor = color;
 	
 }

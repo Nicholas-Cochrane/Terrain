@@ -195,6 +195,9 @@ int main()
     -1.0f,  1.0f, 0.0f
     };
 
+    //weather/lighting shader variables
+    glm::vec3 sunDirection = glm::normalize(glm::vec3(0.0f, 0.2f, -0.5f));
+
     //Set up screenQuad (sky) VBO
     unsigned int screenQuadVBO, screenQuadVAO;
     glGenVertexArrays(1, &screenQuadVAO);
@@ -279,6 +282,7 @@ int main()
     tessShader->setFloat("heightScale", Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
     tessShader->setFloat("nearPlane", nearPlane);
     tessShader->setFloat("farPlane", farPlane);
+    glUniform3fv(glGetUniformLocation(tessShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
 
     //Pass height map Variables to Camera
     camera.passHeightMapData(heightMapCopyArray, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
@@ -349,11 +353,11 @@ int main()
             //TODO: try stencil mask
             glDepthMask(GL_FALSE);
             screenQuadShader->use();
-            screenQuadShader->setFloat("FOV", camera.Zoom);
             screenQuadShader->setMat4("persMatrix",projection * originView);
             screenQuadShader->setMat4("invPersMatrix", glm::inverse(projection * originView));
             glUniform2fv(glGetUniformLocation(screenQuadShader->ID, "depthrange"), 1, glm::value_ptr(glm::vec2(depthRangeData[0], depthRangeData[1])));
             glUniform4fv(glGetUniformLocation(screenQuadShader->ID, "viewport"), 1, glm::value_ptr(glm::vec4(viewportData[0],viewportData[1],viewportData[2],viewportData[3])));
+            glUniform3fv(glGetUniformLocation(screenQuadShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
             glBindVertexArray(screenQuadVAO);
             glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
             glBindVertexArray(0);
@@ -394,7 +398,7 @@ int main()
                 ImGui::Text(positionStr.c_str());
 
                 float yawAngle;
-                float fract =  std::modf(camera.Yaw, &yawAngle);
+                std::modf(camera.Yaw, &yawAngle);
                 yawAngle = static_cast<int>(yawAngle)%360;
                 if(yawAngle < 0 ) yawAngle += 360;
                 if(yawAngle < 45 || yawAngle > 315){ // East is 0 degrees
@@ -428,6 +432,7 @@ int main()
 
             static bool metricsWindowToggle = false;
             static bool demoWindowToggle = false;
+            static bool weatherWindowToggle = true;
 
             ImGui::Begin("Debug", NULL, ImGuiWindowFlags_NoScrollbar);
                 if (ImGui::Button("Reload Tess Shader")){
@@ -439,6 +444,12 @@ int main()
                     tessShader->setFloat("heightScale", Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
                     tessShader->setFloat("nearPlane", nearPlane);
                     tessShader->setFloat("farPlane", farPlane);
+                    glUniform3fv(glGetUniformLocation(tessShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
+                }
+                if (ImGui::Button("Reload Sky Shader")){
+                    delete screenQuadShader;
+                    screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs", NULL, NULL);
+                    glUniform3fv(glGetUniformLocation(screenQuadShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
                 }
                 if (ImGui::Button("Reload Compute Shader")){
                     delete imageGenShader;
@@ -462,7 +473,76 @@ int main()
                 }
                 ImGui::Checkbox("Metrics Window", &metricsWindowToggle);
                 ImGui::Checkbox("Demo Window", &demoWindowToggle);
+                ImGui::Checkbox("Weather Window", &weatherWindowToggle);
             ImGui::End();
+
+            if(weatherWindowToggle){
+                ImGui::Begin("Weather and Time");
+                    std::string textString;
+
+                    // Longitude of the sun by day (does not account for rotation of earth or position on earth
+                    static float N = 0.0;//days since 2000 Jan 1st 12:00 Noon GMT
+                    static float Nfract = 0.0;
+                    static float Nint = 0.0;
+                    static float hourAngle = 0.0;
+                    static float latitude = 0.0;
+                    // move statics out of imgui if used
+
+                    ImGui::SliderFloat("Days:", &Nint, 0.0f, 365.0f, "%.0f");
+                    ImGui::SliderFloat("Day:", &Nfract, 0.0f, 1.0f, "%.7f");
+                    ImGui::SliderFloat("HourAngle:", &hourAngle, -180.0f, 180.0f, "%.7f");
+                    ImGui::SliderFloat("Latitude:", &latitude, -90.0f, 90.0f, "%.5f");
+                    N = Nint + Nfract;
+                    double L = 280.460f + 0.9856474f*N;
+                    double g = 357.528+0.9856003*N;
+                    double intComponent;
+                    // clamp between 0 and 360
+                    g = std::modf(g, &intComponent);
+                    g += static_cast<int>(intComponent)%360;
+                    L = std::modf(L, &intComponent);
+                    L += static_cast<int>(intComponent)%360;
+
+                    double a = std::sin(g * (M_PI/180.0d));//calculate sin in degrees
+                    double b = std::sin(2*g * (M_PI/180.0d));
+                    double eclipticLongitude = L + 1.915d*a + 0.020d*b;
+
+                    double Ecliptic = (23.439 - 0.00000036*N)*(M_PI/180.0d);
+
+                    double RA = std::atan2(cos(Ecliptic),std::cos(eclipticLongitude*(M_PI/180.0d)));
+                    double declination = std::asin(std::sin(Ecliptic) * std::sin(eclipticLongitude*(M_PI/180.0d)));
+
+                    double zenith = std::acos( (std::sin(latitude*(M_PI/180.0d))*std::sin(declination)) + (std::cos(latitude*(M_PI/180.0d))*std::cos(declination)*std::cos(hourAngle*(M_PI/180.0d))) );
+
+                    double azimuth = std::acos( ((std::sin(declination)*std::cos(latitude*(M_PI/180.0d))) - (std::cos(hourAngle)*std::cos(declination)*std::sin(latitude*(M_PI/180.0d)))) / std::sin(zenith) );
+                    double azimuth2 = std::acos( (std::sin(declination) - (std::cos(zenith)*std::sin(latitude*(M_PI/180.0d)))) / (std::sin(zenith) * std::cos(latitude*(M_PI/180.0d))) );
+                    double azimuth360 = azimuth2;
+
+                    if(hourAngle > 0.0){
+                        azimuth360 = (2*M_PI) - azimuth2; //360-azimuth in radians
+                    }
+
+                    textString = "g:" + std::to_string(g) + " L:" + std::to_string(L);
+                    ImGui::Text(textString.c_str());
+                    textString = "Long:" + std::to_string(eclipticLongitude) + " N:" + std::to_string(N);
+                    ImGui::Text(textString.c_str());
+                    textString = "RA:" + std::to_string(RA * (180.0d/M_PI)) + " d:" + std::to_string(declination*(180.0d/M_PI));
+                    ImGui::Text(textString.c_str());
+                    textString = "Zenith: " + std::to_string(zenith*(180.0d/M_PI)) + " Azimuth:" + std::to_string(azimuth2*(180.0d/M_PI)) + " Azimuth 360:" + std::to_string(azimuth360*(180.0d/M_PI));
+                    ImGui::Text(textString.c_str());
+                    textString = "angle:" + std::to_string(90.0-(zenith *(180.0d/M_PI)));
+                    ImGui::Text(textString.c_str());
+
+                    double sunElevation = (M_PI/2)-zenith;
+
+                    sunDirection = glm::vec3(std::sin(azimuth360), std::sin(sunElevation) , -std::cos(azimuth360)); //todo fix sun dipping south at noon
+
+                    ImGui::SliderFloat("Sun X:", &sunDirection.x, -1.0f, 1.0f, "%.4f");
+                    ImGui::SliderFloat("Sun Y:", &sunDirection.y, -1.0f, 1.0f, "%.4f");
+                    ImGui::SliderFloat("Sun Z:", &sunDirection.z, -1.0f, 1.0f, "%.4f");
+                    sunDirection = glm::normalize(sunDirection);
+                    glUniform3fv(glGetUniformLocation(tessShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
+                ImGui::End();
+            }
 
 
 

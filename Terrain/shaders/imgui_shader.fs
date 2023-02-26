@@ -16,13 +16,13 @@ layout (location = 0) out vec4 Out_Color;
 void main()
 {
 	if(showMap){
-		vec3 lightDir = normalize(vec3(0.0f, 0.5f, -0.5f));
+		vec3 lightDir = normalize(vec3(-0.5f, 0.5f, 0f));
 	
 		float left  = texture(heightMap, Frag_UV + vec2(-uTexelSize, 0.0)).r* heightScale * 2.0 - 1.0;
 		float right = texture(heightMap, Frag_UV + vec2( uTexelSize, 0.0)).r* heightScale * 2.0 - 1.0;
 		float up    = texture(heightMap, Frag_UV + vec2(0.0,  uTexelSize)).r* heightScale * 2.0 - 1.0;
 		float down  = texture(heightMap, Frag_UV + vec2(0.0, -uTexelSize)).r* heightScale * 2.0 - 1.0;
-		vec3 normal = normalize(vec3(down - up, 2.0, left - right));
+		vec3 normal = normalize(vec3(left - right, 2.0, up-down));
 		float slope = max(dot(normal, vec3(0.0f,1.0f,0.0f)), 0.0f); // slope from up
 		float diff = max(dot(normal, lightDir), 0.0);
 		
