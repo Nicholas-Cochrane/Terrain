@@ -248,8 +248,6 @@ int main()
 	imageGenShader->use();
 	imageGenShader->setInt("seed", seed);
 	glUniform2uiv(glGetUniformLocation(imageGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(computeHMWidth,computeHMHeight)));
-	imageGenShader->setUInt("texHeight",computeHMHeight);
-	imageGenShader->setUInt("texWidth",computeHMWidth);
     glDispatchCompute((unsigned int)computeHMWidth, (unsigned int)computeHMHeight, 1);
 
     // make sure writing to image has finished before read
@@ -330,7 +328,7 @@ int main()
         { // if window is minimized do not render (Rendering while at resolution 0x0 cause glm::matix_clip_space.inl assertion to fail)
 
             //glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
-            glClearColor(0.502,0.725,0.988, 1.0f);
+            glClearColor(0.207f, 0.318f, 0.361, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             //get view port info [x, y, width, height]
@@ -458,8 +456,6 @@ int main()
                     imageGenShader->use();
                     imageGenShader->setInt("seed", seed);
                     glUniform2uiv(glGetUniformLocation(imageGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(computeHMWidth,computeHMHeight)));
-                    imageGenShader->setUInt("texHeight",computeHMHeight);
-                    imageGenShader->setUInt("texWidth",computeHMWidth);
                     glDispatchCompute((unsigned int)computeHMWidth, (unsigned int)computeHMHeight, 1);
 
                     heightMapCopied = NOT_STARTED; //Recopy height map to RAM
@@ -481,18 +477,28 @@ int main()
                     std::string textString;
 
                     // Longitude of the sun by day (does not account for rotation of earth or position on earth
-                    static float N = 0.0;//days since 2000 Jan 1st 12:00 Noon GMT
-                    static float Nfract = 0.0;
                     static float Nint = 0.0;
                     static float hourAngle = 0.0;
                     static float latitude = 0.0;
                     // move statics out of imgui if used
 
                     ImGui::SliderFloat("Days:", &Nint, 0.0f, 365.0f, "%.0f");
-                    ImGui::SliderFloat("Day:", &Nfract, 0.0f, 1.0f, "%.7f");
                     ImGui::SliderFloat("HourAngle:", &hourAngle, -180.0f, 180.0f, "%.7f");
-                    ImGui::SliderFloat("Latitude:", &latitude, -90.0f, 90.0f, "%.5f");
-                    N = Nint + Nfract;
+                    ImGui::SliderFloat("Latitude:", &latitude, -85.0f, 85.0f, "%.5f");
+
+                    float Nfract = hourAngle/180.0 * 0.5;
+                    float minutes = (hourAngle + 180)/15;
+                    float hour;
+                    minutes = std::modf(minutes, &hour);
+                    minutes *= 60;
+                    std::modf(minutes, &minutes);
+                    std::string minuteString = std::to_string(static_cast<int>(minutes));
+                    if(minuteString.size() < 2){minuteString = "0" + minuteString;} // add leading 0
+
+                    textString = "nfract:" + std::to_string(Nfract) + " time:" + std::to_string(static_cast<int>(hour)) + ":" + minuteString;
+                    ImGui::Text(textString.c_str());
+
+                    float N = Nint + Nfract; //days since 2000 Jan 1st 12:00 Noon GMT
                     double L = 280.460f + 0.9856474f*N;
                     double g = 357.528+0.9856003*N;
                     double intComponent;
@@ -511,9 +517,9 @@ int main()
                     double RA = std::atan2(cos(Ecliptic),std::cos(eclipticLongitude*(M_PI/180.0d)));
                     double declination = std::asin(std::sin(Ecliptic) * std::sin(eclipticLongitude*(M_PI/180.0d)));
 
-                    double zenith = std::acos( (std::sin(latitude*(M_PI/180.0d))*std::sin(declination)) + (std::cos(latitude*(M_PI/180.0d))*std::cos(declination)*std::cos(hourAngle*(M_PI/180.0d))) );
+                    double zenith = std::acos( (std::sin(latitude*(M_PI/180.0d))*std::sin(declination)) + (std::cos(latitude*(M_PI/180.0d))*std::cos(declination)*std::cos((hourAngle+0.0001)*(M_PI/180.0d))) );
 
-                    double azimuth = std::acos( ((std::sin(declination)*std::cos(latitude*(M_PI/180.0d))) - (std::cos(hourAngle)*std::cos(declination)*std::sin(latitude*(M_PI/180.0d)))) / std::sin(zenith) );
+                    double azimuth = std::acos( ((std::sin(declination)*std::cos(latitude*(M_PI/180.0d))) - (std::cos((hourAngle+0.0001)*(M_PI/180.0d))*std::cos(declination)*std::sin(latitude*(M_PI/180.0d)))) / std::sin(zenith) );
                     double azimuth2 = std::acos( (std::sin(declination) - (std::cos(zenith)*std::sin(latitude*(M_PI/180.0d)))) / (std::sin(zenith) * std::cos(latitude*(M_PI/180.0d))) );
                     double azimuth360 = azimuth2;
 
@@ -534,12 +540,10 @@ int main()
 
                     double sunElevation = (M_PI/2)-zenith;
 
-                    sunDirection = glm::vec3(std::sin(azimuth360), std::sin(sunElevation) , -std::cos(azimuth360)); //todo fix sun dipping south at noon
-
-                    ImGui::SliderFloat("Sun X:", &sunDirection.x, -1.0f, 1.0f, "%.4f");
-                    ImGui::SliderFloat("Sun Y:", &sunDirection.y, -1.0f, 1.0f, "%.4f");
-                    ImGui::SliderFloat("Sun Z:", &sunDirection.z, -1.0f, 1.0f, "%.4f");
+                    sunDirection = glm::vec3(std::sin(zenith) * std::sin(azimuth360), std::cos(zenith) , std::sin(zenith) *  -std::cos(azimuth360)); //todo fix sun dipping south at noon
                     sunDirection = glm::normalize(sunDirection);
+
+                    tessShader->setFloat("latitude", latitude);
                     glUniform3fv(glGetUniformLocation(tessShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
                 ImGui::End();
             }

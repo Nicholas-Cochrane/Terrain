@@ -26,6 +26,7 @@ void main()
 	vec4 rayDir = CalcEyeFromWindow(gl_FragCoord.xyz);
 	
 	vec4 color = vec4(1,0,1,1);
+	color = vec4(0.3f, 0.4f, 0.5f, 1.0f);
 	
 	if(dot(normalize(rayDir.xyz), sunDirection) > 0.999){
 		color = vec4(1,1,1,1);

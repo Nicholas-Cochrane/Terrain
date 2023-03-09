@@ -4,8 +4,6 @@ layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 layout(RG32F, binding = 0) uniform image2D imgOutput;
 layout (location = 0) uniform int seed;
 uniform uvec2 texRes;
-uniform uint texHeight;
-uniform uint texWidth;
 
 #define PI 3.1415926535897932384626433832795
 #define MAX_UINT 4294967295u

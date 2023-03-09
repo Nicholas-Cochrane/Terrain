@@ -7,6 +7,7 @@ uniform float uTexelSize; // 1/total size of terrain
 uniform float nearPlane;
 uniform float farPlane;
 uniform vec3 sunDirection;
+uniform float latitude;
 
 in float Height; //Height from Evaluation Shader
 in vec2 HeightMapCoords;
@@ -77,26 +78,26 @@ void main()
 	
 	vec4 col = vec4(0.7176f, 0.5922f, 0.4353f, 1.0f); //vec4(h, h, h, 1.0);
 	
-	if(h < 0.0){
+	if(Height < 0.0){
 		col = vec4(0.098f,0.137f,0.659f, 1.0f);
-	}else if(slope < 0.7854){ // >45 degrees 
-		col = vec4(0.6627f, 0.6314f, 0.5725, 1.0f);//rock
-	}else if(h < 0.1829f){ //731m / 3997m
-		col = vec4(0.7176f, 0.5922f, 0.4353f, 1.0f); // grass
-	}else if(h < 0.6880f){//2750m / 3997m
+	}else if(slope < radians(24.0)){
+		col = vec4(0.659,0.631,0.569, 1.0f);//rock
+	}else if(Height > (-59.0 * abs(latitude) + 4700)){// snow line
+		col = vec4(0.8902f, 0.9059f, 0.9294f, 1.0f);//snow
+	}else if(Height < 8.0f){ 
+		col = vec4(0.965,0.843,0.69, 1.0f); // sand
+	}else if(Height < 2750){
 		//1158m/ 3997m = 0.29
 		//(x-0.1829)/(0.29-0.1829)  blend from grass to tree from 731m to 1158m
-		col = mix(vec4(0.7176f, 0.5922f, 0.4353f, 1.0f), vec4(0.1647f, 0.1961f ,0.1569f, 1.0f),clamp((h-0.1829)/(0.29-0.1829), 0.0f, 1.0f));
+		col = mix(vec4(0.384,0.451,0.255f, 1.0f), vec4(0.1647f, 0.1961f ,0.1569f, 1.0f),clamp((h-0.1829)/(0.29-0.1829), 0.0f, 1.0f));
 		//col = vec4( 0.1647f, 0.1961f ,0.1569f, 1.0f); // trees
-	}else if(h < 0.8694f){//3475m / 3997m
-		col = vec4(0.6627f, 0.6314f, 0.5725, 1.0f);//rock
 	}else{
-		col = vec4(0.8902f, 0.9059f, 0.9294f, 1.0f);//snow
+		col = vec4(0.659,0.631,0.569, 1.0f);//rock
 	}
-	float diff = max(dot(normal, sunDirection), 0.0);
+	float diff = max(0.4+0.6*dot(normal, sunDirection), 0.0);
 	float depth = LinearizeDepth(gl_FragCoord.z) / farPlane; // divide by far for demonstration
 	float fogFactor = 1/pow(2,pow(depth*10.0f,1.4));
 	vec4 fogColor = vec4(0.788f,0.906f,1.0f,1.0f);
     //FragColor = vec4(vec3(depth), 1.0);
-	FragColor = mix(fogColor,vec4((vec3(0.207f, 0.318f, 0.361f) + diff) * col.rgb,1.0f), fogFactor);
+	FragColor = mix(fogColor,vec4((vec3(0.3f, 0.4f, 0.5f) + diff) * col.rgb,1.0f), fogFactor);
 }
