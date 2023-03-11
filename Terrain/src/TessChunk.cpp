@@ -50,8 +50,12 @@ void TessChunk::draw(Shader &shader, glm::mat4 &viewMatrix, glm::mat4 &projectio
     shader.setMat4("mpvMatrix2", projectionMatrix2 * viewMatrix * modelMatrix);
     shader.setMat4("mvMatrix", viewMatrix * modelMatrix);
 
+    //TODO Stop doing the above all EVERY TIME 2.3% of gpu usage
+
     glBindVertexArray(VAO);
     glDrawArrays(GL_PATCHES, 0, 4*patchesPerEdge*patchesPerEdge); //send verts as patch to Tessellation shader
+
+    glBindVertexArray(0); // unbind
 }
 
 void TessChunk::setUpVertices()
@@ -80,7 +84,7 @@ void TessChunk::setUpVertices()
             tempVertex.texCoords = heightMapUV + glm::vec2(heightMapUVScale/patchesPerEdge + heightMapUVScale/patchesPerEdge * x, 0.0f + heightMapUVScale/patchesPerEdge * z);
             vertices.push_back(tempVertex);
 
-                //top left (0,1)
+            //top left (0,1)
             tempVertex.posCoords = glm::vec3(width* x, 0.0f, width * -1.0f - width * z);//(-z is north)
             tempVertex.texCoords = heightMapUV + glm::vec2(0.0f + heightMapUVScale/patchesPerEdge * x, heightMapUVScale/patchesPerEdge + heightMapUVScale/patchesPerEdge * z);
             vertices.push_back(tempVertex);

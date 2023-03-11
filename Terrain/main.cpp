@@ -29,6 +29,7 @@
 //#include "include/chunk.h"
 #include "include/TessChunk.h"
 #include "include/CustomEnumerators.h"
+#include "include/Ocean.h"
 #define GLFW_DLL
 
 //Function Delectations
@@ -172,6 +173,7 @@ int main()
     Shader* tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
     Shader* mapShader = new Shader("shaders/imgui_shader.vs", "shaders/imgui_shader.fs", NULL, NULL);
     Shader* screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs", NULL, NULL);
+    Shader* oceanShader = new Shader("shaders/ocean_shader.vs", "shaders/ocean_shader.fs", "shaders/ocean_shader.tcs", "shaders/ocean_shader.tes");
     glCheckError();
     ComputeShader* imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
 
@@ -285,6 +287,11 @@ int main()
     //Pass height map Variables to Camera
     camera.passHeightMapData(heightMapCopyArray, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
 
+    // create ocean
+    Ocean OceanObj(computeHightMap, glm::vec2(computeHMWidth,computeHMHeight));
+
+    bool tempSetUpOceanVerts = false;
+
     //imgui
     //-----
     IMGUI_CHECKVERSION();
@@ -299,10 +306,12 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 410");
 
+    glCheckError();
     // render loop
     // -------------------------------------------------------------------------------------------------
     while (!glfwWindowShouldClose(window))
     {
+        //glCheckError();
         //Delta time Calculation
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
@@ -326,7 +335,7 @@ int main()
         // ------
         if(!glfwGetWindowAttrib(window, GLFW_ICONIFIED))
         { // if window is minimized do not render (Rendering while at resolution 0x0 cause glm::matix_clip_space.inl assertion to fail)
-
+            //glCheckError();
             //glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
             glClearColor(0.207f, 0.318f, 0.361, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -360,7 +369,6 @@ int main()
             glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
             glBindVertexArray(0);
             glDepthMask(GL_TRUE);
-
             //set up new frame for ImGui
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
@@ -371,15 +379,26 @@ int main()
             glBindTexture(GL_TEXTURE_2D, texture1);
             //tessShader.use();
             tessShader->use();
-
             //send player position to shader
             glUniform4fv(glGetUniformLocation(tessShader->ID, "camPos"), 1, glm::value_ptr(glm::vec4(camera.Position, 1.0f)));
 
+            //glCheckError();
             // Begin Draw
-
+            //------------------------------------------------
+            //Draw Ground
             for(unsigned int i = 0; i < chunkList.size(); i++){
                 chunkList.at(i)->draw(*tessShader, view, projection, projection2);
             }
+
+            //Draw Ocean
+            if(!tempSetUpOceanVerts){
+                OceanObj.setUpVertices(view, projection);
+                OceanObj.setUpBuffers();
+                //tempSetUpOceanVerts = true;
+            }
+            OceanObj.draw(*oceanShader, camera, projection, projection2);
+
+
 
             //Create ImGui windows
             //--------------------
@@ -449,6 +468,10 @@ int main()
                     screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs", NULL, NULL);
                     glUniform3fv(glGetUniformLocation(screenQuadShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
                 }
+                if (ImGui::Button("Reload Ocean Shader")){
+                    delete oceanShader;
+                    oceanShader = new Shader("shaders/ocean_shader.vs", "shaders/ocean_shader.fs", "shaders/ocean_shader.tcs", "shaders/ocean_shader.tes");
+                }
                 if (ImGui::Button("Reload Compute Shader")){
                     delete imageGenShader;
                     imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
@@ -517,12 +540,13 @@ int main()
                     double RA = std::atan2(cos(Ecliptic),std::cos(eclipticLongitude*(M_PI/180.0d)));
                     double declination = std::asin(std::sin(Ecliptic) * std::sin(eclipticLongitude*(M_PI/180.0d)));
 
+                    // add small amount to hourAngle to avoid equaling zero
                     double zenith = std::acos( (std::sin(latitude*(M_PI/180.0d))*std::sin(declination)) + (std::cos(latitude*(M_PI/180.0d))*std::cos(declination)*std::cos((hourAngle+0.0001)*(M_PI/180.0d))) );
 
-                    double azimuth = std::acos( ((std::sin(declination)*std::cos(latitude*(M_PI/180.0d))) - (std::cos((hourAngle+0.0001)*(M_PI/180.0d))*std::cos(declination)*std::sin(latitude*(M_PI/180.0d)))) / std::sin(zenith) );
+                    // add small amount to hourAngle to avoid equaling zero
+                    //double azimuth = std::acos( ((std::sin(declination)*std::cos(latitude*(M_PI/180.0d))) - (std::cos((hourAngle+0.0001)*(M_PI/180.0d))*std::cos(declination)*std::sin(latitude*(M_PI/180.0d)))) / std::sin(zenith) );
                     double azimuth2 = std::acos( (std::sin(declination) - (std::cos(zenith)*std::sin(latitude*(M_PI/180.0d)))) / (std::sin(zenith) * std::cos(latitude*(M_PI/180.0d))) );
                     double azimuth360 = azimuth2;
-
                     if(hourAngle > 0.0){
                         azimuth360 = (2*M_PI) - azimuth2; //360-azimuth in radians
                     }
@@ -538,16 +562,16 @@ int main()
                     textString = "angle:" + std::to_string(90.0-(zenith *(180.0d/M_PI)));
                     ImGui::Text(textString.c_str());
 
-                    double sunElevation = (M_PI/2)-zenith;
+                    //double sunElevation = (M_PI/2)-zenith;
 
                     sunDirection = glm::vec3(std::sin(zenith) * std::sin(azimuth360), std::cos(zenith) , std::sin(zenith) *  -std::cos(azimuth360)); //todo fix sun dipping south at noon
                     sunDirection = glm::normalize(sunDirection);
 
+                    tessShader->use();
                     tessShader->setFloat("latitude", latitude);
                     glUniform3fv(glGetUniformLocation(tessShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
                 ImGui::End();
             }
-
 
 
             ImGui::SetNextWindowSizeConstraints(ImVec2(168,264), ImVec2(FLT_MAX,FLT_MAX));
@@ -672,6 +696,7 @@ int main()
                 //Resize window to remove extra window space to fit map
                 ImGui::SetWindowSize(ImVec2(ImGui::GetWindowWidth(), ImGui::GetItemRectMax().y - ImGui::GetWindowPos().y + mapSize + 1));
 
+                //TODO Change computeHightMap for some mipmaped or low res variant
                 ImGui::Image((void*)(intptr_t)computeHightMap, ImVec2(mapSize, mapSize), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
                 draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr); // reset shader
 
@@ -703,6 +728,7 @@ int main()
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
+        //glCheckError();
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);

@@ -1,0 +1,43 @@
+//Tessellation Control Shader
+// AKA Hull Shader in DirectX
+#version 410 core
+
+layout(vertices=4) out;
+
+//uniform sampler2D heightMap;  // the texture corresponding to our height map
+
+//uniform mat4 mvMatrix;          // model view matrix
+//uniform mat4 mpvMatrix;         // model projection view Matrix
+//uniform mat4 mpvMatrix2;        // Alt MPV for testing
+//uniform mat4 modelMatrix;       // model matrix to move points from movdel space to world space
+
+//uniform vec4 camPos;            // Camera coordinates
+//uniform float heightScale;    	// (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
+
+
+// varying input from vertex shader
+//in vec2 TexCoord[];
+// varying output to evaluation shader
+//out vec2 TextureCoord[];
+
+void main()
+{
+	gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+	//TextureCoord[gl_InvocationID] = TexCoord[gl_InvocationID];
+			
+	if (gl_InvocationID == 0)
+    {
+
+		// ----------------------------------------------------------------------
+		//set the corresponding outer edge tessellation levels
+		gl_TessLevelOuter[0] = 4;
+		gl_TessLevelOuter[1] = 4;
+		gl_TessLevelOuter[2] = 4;
+		gl_TessLevelOuter[3] = 4;
+
+		// ----------------------------------------------------------------------
+		//set the inner tessellation levels to the max of the two parallel edges
+		gl_TessLevelInner[0] = 4;
+		gl_TessLevelInner[1] = 4;
+    }
+}
