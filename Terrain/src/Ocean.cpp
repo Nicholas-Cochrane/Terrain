@@ -1,5 +1,7 @@
 #include "Ocean.h"
 #include <iostream>
+#include <limits>
+#include <algorithm>
 
 Ocean::Ocean(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput)
 {
@@ -59,10 +61,11 @@ float Ocean::linePlaneIntersectT(glm::vec3 P0, glm::vec3 P1, glm::vec3 P2, glm::
     return t;
 }
 
-void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix)
+void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, glm::vec3& playerPosition)
 {
     vertices.clear();
     frustumVerts.clear();
+    std::vector<glm::vec3> planeVerts;
     float oceanLevel = 0;
     glm::mat4 inv = glm::inverse(projectionMatrix * viewMatrix);
     glm::vec4 temp;
@@ -120,7 +123,7 @@ void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix)
 
         result = this->linePlaneIntersectT(P0, P1, P2, frustumVerts[i], frustumVerts[i+4]);
         if(result < 1.0f && result > 0.0f){
-            vertices.push_back(frustumVerts[i] + (frustumVerts[i+4] - frustumVerts[i])* result);
+            planeVerts.push_back(frustumVerts[i] + (frustumVerts[i+4] - frustumVerts[i])* result);
         }
     }
 
@@ -129,35 +132,84 @@ void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix)
 
         result = this->linePlaneIntersectT(P0, P1, P2, frustumVerts[i*2], frustumVerts[(i*2)+1]);
         if(result < 1.0f && result > 0.0f){
-            vertices.push_back(frustumVerts[i*2] + (frustumVerts[(i*2)+1] - frustumVerts[i*2])* result);
+            planeVerts.push_back(frustumVerts[i*2] + (frustumVerts[(i*2)+1] - frustumVerts[i*2])* result);
         }
     }
     //(bot) left/right (top) left/right
     result = this->linePlaneIntersectT(P0, P1, P2, frustumVerts[0], frustumVerts[2]);
     if(result < 1.0f && result > 0.0f){
-        vertices.push_back(frustumVerts[0] + (frustumVerts[2] - frustumVerts[0])* result);
+        planeVerts.push_back(frustumVerts[0] + (frustumVerts[2] - frustumVerts[0])* result);
     }
 
     result = this->linePlaneIntersectT(P0, P1, P2, frustumVerts[1], frustumVerts[3]);
     if(result < 1.0f && result > 0.0f){
-            vertices.push_back(frustumVerts[1] + (frustumVerts[3] - frustumVerts[1])* result);
+            planeVerts.push_back(frustumVerts[1] + (frustumVerts[3] - frustumVerts[1])* result);
     }
 
     result = this->linePlaneIntersectT(P0, P1, P2, frustumVerts[4], frustumVerts[6]);
     if(result < 1.0f && result > 0.0f){
-            vertices.push_back(frustumVerts[4] + (frustumVerts[6] - frustumVerts[4])* result);
+            planeVerts.push_back(frustumVerts[4] + (frustumVerts[6] - frustumVerts[4])* result);
     }
 
     result = this->linePlaneIntersectT(P0, P1, P2, frustumVerts[5], frustumVerts[7]);
     if(result < 1.0f && result > 0.0f){
-            vertices.push_back(frustumVerts[5] + (frustumVerts[7] - frustumVerts[5])* result);
+            planeVerts.push_back(frustumVerts[5] + (frustumVerts[7] - frustumVerts[5])* result);
     }
 
-    std::cout << std::endl;
+    if (planeVerts.size() < 4) return; // if no solution exists return (ie: ocean plane is not on screen)
+
+    //calculate center of visible ocean plane
+    glm::vec3 planeCenterPoint = glm::vec3(0,0,0);
+    for(int i = 0; i < 4; i++)
+    {
+        planeCenterPoint += planeVerts[i];
+    }
+    planeCenterPoint /= 4.0;
+
+    //calculate distance from player
+    std::sort(planeVerts.begin(), planeVerts.end(),
+              [playerPosition](const glm::vec3 &a, glm::vec3 &b) -> bool
+              {
+                return  glm::distance(a,playerPosition) < glm::distance(b,playerPosition);
+              });
+
+    //set planeVerts[2] to be the farthest point from the closest point to the player
+    // thus [0] is the closet to the player, [1] is the second closet and [2] is diagonal to [0] and [3] is diagonal to [1]
+    // meaning [0] to [3] is a ccw Quad
+    if(glm::distance(planeVerts[0],planeVerts[2]) < glm::distance(planeVerts[0],planeVerts[3])){
+        std::swap(planeVerts[2],planeVerts[3]);
+    }
     for(int i = 0; i < 4; i++){
-
-        std::cout << vertices[i].x << " " << vertices[i].y << " " << vertices[i].z << std::endl;
+    float cornerX = std::floor(planeVerts[i].x/32.0)*32.0;
+    float cornerZ = std::floor(planeVerts[i].z/32.0)*32.0;
+    //std::cout << cornerX << ' ' << cornerZ << ' ' << std::endl;
+    if(oceanLevel < playerPosition.y){ // if player is above ocean
+        //bottom left (0,0)
+        vertices.push_back(glm::vec3(cornerX,oceanLevel,cornerZ));
+        //bottom right (1,0)
+        vertices.push_back(glm::vec3(cornerX+32.0,oceanLevel,cornerZ));
+        //top left (0,1)
+        vertices.push_back(glm::vec3(cornerX,oceanLevel,cornerZ-32.0)); // z is in the negative axis
+        //top right (1,1)
+        vertices.push_back(glm::vec3(cornerX+32.0,oceanLevel,cornerZ-32.0));// z is in the negative axis
+    }else{// if player is below ocean
+        //top left (0,1)
+        vertices.push_back(glm::vec3(cornerX,oceanLevel,cornerZ-32.0)); // z is in the negative axis
+        //top right (1,1)
+        vertices.push_back(glm::vec3(cornerX+32.0,oceanLevel,cornerZ-32.0));// z is in the negative axis
+        //bottom left (0,0)
+        vertices.push_back(glm::vec3(cornerX,oceanLevel,cornerZ));
+        //bottom right (1,0)
+        vertices.push_back(glm::vec3(cornerX+32.0,oceanLevel,cornerZ));
     }
+    }
+    /*
+    std::cout << std::endl;
+    for(int i = 0; i < 4; i++)
+    {
+        std::cout << vertices[i].x << ' ' << vertices[i].y << ' ' << vertices[i].z << ' ' << std::endl;
+    }
+    */
 }
 
 void Ocean::setUpBuffers()

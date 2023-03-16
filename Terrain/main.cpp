@@ -392,7 +392,7 @@ int main()
 
             //Draw Ocean
             if(!tempSetUpOceanVerts){
-                OceanObj.setUpVertices(view, projection);
+                OceanObj.setUpVertices(view, projection, camera.Position);
                 OceanObj.setUpBuffers();
                 //tempSetUpOceanVerts = true;
             }

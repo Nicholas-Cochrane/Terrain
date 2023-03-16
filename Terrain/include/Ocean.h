@@ -22,7 +22,7 @@ class Ocean
         virtual ~Ocean();
         void draw(Shader &shader, Camera &camera, glm::mat4 &projectionMatrix, glm::mat4 &projectionMatrix2);
 
-        void setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix); // Create verts to pass to VBO
+        void setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, glm::vec3& playerPosition); // Create verts to pass to VBO
         void setUpBuffers(); // Create VAO/VBO
 
     protected:

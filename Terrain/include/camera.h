@@ -128,7 +128,7 @@ public:
         }
 
         if(!fly && !std::isinf(Elevation)){
-            Position.y = Elevation + 1.68;
+            Position.y = Elevation + 1.7;
         }
     }
 

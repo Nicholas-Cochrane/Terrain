@@ -27,17 +27,17 @@ void main()
 			
 	if (gl_InvocationID == 0)
     {
-
+		float temp = 1;
 		// ----------------------------------------------------------------------
 		//set the corresponding outer edge tessellation levels
-		gl_TessLevelOuter[0] = 4;
-		gl_TessLevelOuter[1] = 4;
-		gl_TessLevelOuter[2] = 4;
-		gl_TessLevelOuter[3] = 4;
+		gl_TessLevelOuter[0] = temp;
+		gl_TessLevelOuter[1] = temp;
+		gl_TessLevelOuter[2] = temp;
+		gl_TessLevelOuter[3] = temp;
 
 		// ----------------------------------------------------------------------
 		//set the inner tessellation levels to the max of the two parallel edges
-		gl_TessLevelInner[0] = 4;
-		gl_TessLevelInner[1] = 4;
+		gl_TessLevelInner[0] = temp;
+		gl_TessLevelInner[1] = temp;
     }
 }

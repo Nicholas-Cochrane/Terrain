@@ -15,7 +15,7 @@ uniform mat4 pvMatrix;
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 //in vec2 TextureCoord[];
 
-out vec4 test;
+out vec4 pos;
 
 
 void main()
@@ -44,6 +44,6 @@ void main()
 
     // ----------------------------------------------------------------------
     // output patch point position in clip space
-	test = vec4(1,0,1,1);
+	pos = gl_in[0].gl_Position;
     gl_Position = pvMatrix * p;
 }
