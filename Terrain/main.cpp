@@ -507,7 +507,7 @@ int main()
 
                     ImGui::SliderFloat("Days:", &Nint, 0.0f, 365.0f, "%.0f");
                     ImGui::SliderFloat("HourAngle:", &hourAngle, -180.0f, 180.0f, "%.7f");
-                    ImGui::SliderFloat("Latitude:", &latitude, -85.0f, 85.0f, "%.5f");
+                    ImGui::SliderFloat("Latitude:", &latitude, -90.0f+0.00001, 90.0f-0.00001, "%.5f"); // Math breaks down if exactly on poles
 
                     float Nfract = hourAngle/180.0 * 0.5;
                     float minutes = (hourAngle + 180)/15;
@@ -540,12 +540,11 @@ int main()
                     double RA = std::atan2(cos(Ecliptic),std::cos(eclipticLongitude*(M_PI/180.0d)));
                     double declination = std::asin(std::sin(Ecliptic) * std::sin(eclipticLongitude*(M_PI/180.0d)));
 
-                    // add small amount to hourAngle to avoid equaling zero
-                    double zenith = std::acos( (std::sin(latitude*(M_PI/180.0d))*std::sin(declination)) + (std::cos(latitude*(M_PI/180.0d))*std::cos(declination)*std::cos((hourAngle+0.0001)*(M_PI/180.0d))) );
+                    double zenith = std::acos( (std::sin(latitude*(M_PI/180.0d))*std::sin(declination)) + (std::cos(latitude*(M_PI/180.0d))*std::cos(declination)*std::cos((hourAngle)*(M_PI/180.0d))) );
 
-                    // add small amount to hourAngle to avoid equaling zero
-                    //double azimuth = std::acos( ((std::sin(declination)*std::cos(latitude*(M_PI/180.0d))) - (std::cos((hourAngle+0.0001)*(M_PI/180.0d))*std::cos(declination)*std::sin(latitude*(M_PI/180.0d)))) / std::sin(zenith) );
-                    double azimuth2 = std::acos( (std::sin(declination) - (std::cos(zenith)*std::sin(latitude*(M_PI/180.0d)))) / (std::sin(zenith) * std::cos(latitude*(M_PI/180.0d))) );
+                    //double azimuth = std::acos( ((std::sin(declination)*std::cos(latitude*(M_PI/180.0d))) - (std::cos((hourAngle)*(M_PI/180.0d))*std::cos(declination)*std::sin(latitude*(M_PI/180.0d)))) / std::sin(zenith) );
+                    //clamped to avoid small rounding errors when hourAngle is close to zero leading to for example acos(1.000...0002) which returns a NaN
+                    double azimuth2 = std::acos( glm::clamp((std::sin(declination) - (std::cos(zenith)*std::sin(latitude*(M_PI/180.0d)))) / (std::sin(zenith) * std::cos(latitude*(M_PI/180.0d))),-1.0,1.0) );
                     double azimuth360 = azimuth2;
                     if(hourAngle > 0.0){
                         azimuth360 = (2*M_PI) - azimuth2; //360-azimuth in radians
