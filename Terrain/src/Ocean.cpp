@@ -42,6 +42,7 @@ void Ocean::draw(Shader& shader, Camera& camera, glm::mat4& projectionMatrix, gl
     glBindTexture(GL_TEXTURE_2D, heightMap);
 
     shader.setMat4("pvMatrix", projectionMatrix * camera.GetViewMatrix() );
+    glUniform3fv(glGetUniformLocation(shader.ID, "testQuad"), 1, glm::value_ptr(testPoint));//TODO remove
 
     glBindVertexArray(VAO);
     //send verts as patch to Tessellation shader TEMP SET TO FAN
@@ -60,6 +61,35 @@ float Ocean::linePlaneIntersectT(glm::vec3 P0, glm::vec3 P1, glm::vec3 P2, glm::
               (glm::dot(-L_ab, glm::cross(P_01, P_02)));
     return t;
 }
+
+bool Ocean::isLeft(glm::vec2 a, glm::vec2 b, glm::vec2 c){
+    /// c is left of line a->b
+     return ((b.x - a.x)*(c.y - a.y) - (b.y - a.y)*(c.x - a.x)) > 0;
+}
+
+void Ocean::pushQuad(glm::vec3 corner, float scale, float playerY)
+{
+    if(corner.y < playerY){ // if player is above ocean
+            //bottom left (0,0)
+            vertices.push_back(corner);
+            //bottom right (1,0)
+            vertices.push_back(corner + glm::vec3(scale,0,0));
+            //top left (0,1)
+            vertices.push_back(corner + glm::vec3(0,0,-scale)); // z is in the negative axis
+            //top right (1,1)
+            vertices.push_back(corner + glm::vec3(scale,0,-scale));// z is in the negative axis
+        }else{// if player is below ocean
+            //top left (0,1)
+            vertices.push_back(corner + glm::vec3(0,0,-scale)); // z is in the negative axis
+            //top right (1,1)
+            vertices.push_back(corner + glm::vec3(scale,0,-scale));// z is in the negative axis
+            //bottom left (0,0)
+            vertices.push_back(corner);
+            //bottom right (1,0)
+            vertices.push_back(corner + glm::vec3(scale,0,0));
+        }
+}
+
 
 void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, glm::vec3& playerPosition)
 {
@@ -179,30 +209,79 @@ void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, gl
     if(glm::distance(planeVerts[0],planeVerts[2]) < glm::distance(planeVerts[0],planeVerts[3])){
         std::swap(planeVerts[2],planeVerts[3]);
     }
-    for(int i = 0; i < 4; i++){
-    float cornerX = std::floor(planeVerts[i].x/32.0)*32.0;
-    float cornerZ = std::floor(planeVerts[i].z/32.0)*32.0;
-    //std::cout << cornerX << ' ' << cornerZ << ' ' << std::endl;
-    if(oceanLevel < playerPosition.y){ // if player is above ocean
-        //bottom left (0,0)
-        vertices.push_back(glm::vec3(cornerX,oceanLevel,cornerZ));
-        //bottom right (1,0)
-        vertices.push_back(glm::vec3(cornerX+32.0,oceanLevel,cornerZ));
-        //top left (0,1)
-        vertices.push_back(glm::vec3(cornerX,oceanLevel,cornerZ-32.0)); // z is in the negative axis
-        //top right (1,1)
-        vertices.push_back(glm::vec3(cornerX+32.0,oceanLevel,cornerZ-32.0));// z is in the negative axis
-    }else{// if player is below ocean
-        //top left (0,1)
-        vertices.push_back(glm::vec3(cornerX,oceanLevel,cornerZ-32.0)); // z is in the negative axis
-        //top right (1,1)
-        vertices.push_back(glm::vec3(cornerX+32.0,oceanLevel,cornerZ-32.0));// z is in the negative axis
-        //bottom left (0,0)
-        vertices.push_back(glm::vec3(cornerX,oceanLevel,cornerZ));
-        //bottom right (1,0)
-        vertices.push_back(glm::vec3(cornerX+32.0,oceanLevel,cornerZ));
+
+    float startX = std::floor(planeVerts[0].x/32.0)*32.0;
+    float startZ = std::floor(planeVerts[0].z/32.0)*32.0;
+    float cornerX = startX;
+    float cornerZ = startZ;
+    glm::vec2 normalized_01 = glm::normalize(glm::vec2(planeVerts[1].x,planeVerts[1].z) - glm::vec2(planeVerts[0].x,planeVerts[0].z));
+    glm::vec2 normalized_03 = glm::normalize(glm::vec2(planeVerts[3].x,planeVerts[3].z) - glm::vec2(planeVerts[0].x,planeVerts[0].z));
+    bool xAxisPerpendicular = std::abs(glm::dot(normalized_01,glm::vec2(1.0,0.0))) > 0.707;//find if aligned more with x or z axis
+    float nearFarAxisOffset = 0;
+    bool centerIsLeftOf_03 = this->isLeft(glm::vec2(planeVerts[0].x,planeVerts[0].z), glm::vec2(planeVerts[3].x,planeVerts[3].z), glm::vec2(planeCenterPoint.x,planeCenterPoint.z));// which side of closest side plane intersect
+    bool centerIsLeftOf_01 = this->isLeft(glm::vec2(planeVerts[0].x,planeVerts[0].z), glm::vec2(planeVerts[1].x,planeVerts[1].z), glm::vec2(planeCenterPoint.x,planeCenterPoint.z));// which side of near plane intersect
+    bool centerIsLeftOf_12 = this->isLeft(glm::vec2(planeVerts[1].x,planeVerts[1].z), glm::vec2(planeVerts[2].x,planeVerts[2].z), glm::vec2(planeCenterPoint.x,planeCenterPoint.z));// which side of near plane intersect
+    bool centerIsLeftOf_32 = this->isLeft(glm::vec2(planeVerts[3].x,planeVerts[3].z), glm::vec2(planeVerts[2].x,planeVerts[2].z), glm::vec2(planeCenterPoint.x,planeCenterPoint.z));// which side of near plane intersect
+    testPoint = glm::vec3(cornerX,oceanLevel,cornerZ);//TODO remove
+
+    if(xAxisPerpendicular){
+        //Find direction of Z nearFarAxisOffset
+        float nearFarAxisOffsetSign = glm::sign(glm::dot(normalized_03,glm::vec2(0.0,1.0)));
+        float slope_03 = (planeVerts[3].z - planeVerts[0].z)/(planeVerts[3].x - planeVerts[0].x); // find slope of 0->3
+        float b_03 = planeVerts[0].z - (slope_03* planeVerts[0].x); // find z intercept
+        float nearFarIntersect_03 = (startZ-b_03)/slope_03;
+
+        // push first Quad
+        this->pushQuad(glm::vec3(cornerX,oceanLevel,cornerZ), 32.0, playerPosition.y);
+
+        // move Positive along z axis
+        while(centerIsLeftOf_01 == this->isLeft(glm::vec2(planeVerts[0].x,planeVerts[0].z), glm::vec2(planeVerts[1].x,planeVerts[1].z), glm::vec2(nearFarIntersect_03,startZ+nearFarAxisOffset))&&
+              centerIsLeftOf_32 == this->isLeft(glm::vec2(planeVerts[3].x,planeVerts[3].z), glm::vec2(planeVerts[2].x,planeVerts[2].z), glm::vec2(nearFarIntersect_03,startZ+nearFarAxisOffset))){
+            // move along x axis
+            // Try Positive x
+            cornerX += 32.0;
+            while((centerIsLeftOf_03 == this->isLeft(glm::vec2(planeVerts[0].x,planeVerts[0].z), glm::vec2(planeVerts[3].x,planeVerts[3].z), glm::vec2(cornerX,cornerZ))&&
+                  centerIsLeftOf_12 == this->isLeft(glm::vec2(planeVerts[1].x,planeVerts[1].z), glm::vec2(planeVerts[2].x,planeVerts[2].z), glm::vec2(cornerX,cornerZ))&&
+                  centerIsLeftOf_01 == this->isLeft(glm::vec2(planeVerts[0].x,planeVerts[0].z), glm::vec2(planeVerts[1].x,planeVerts[1].z), glm::vec2(cornerX,cornerZ))&&
+                  centerIsLeftOf_32 == this->isLeft(glm::vec2(planeVerts[3].x,planeVerts[3].z), glm::vec2(planeVerts[2].x,planeVerts[2].z), glm::vec2(cornerX,cornerZ)))||
+                  //top of quad
+                  (centerIsLeftOf_03 == this->isLeft(glm::vec2(planeVerts[0].x,planeVerts[0].z), glm::vec2(planeVerts[3].x,planeVerts[3].z), glm::vec2(cornerX,cornerZ-32.0))&&
+                  centerIsLeftOf_12 == this->isLeft(glm::vec2(planeVerts[1].x,planeVerts[1].z), glm::vec2(planeVerts[2].x,planeVerts[2].z), glm::vec2(cornerX,cornerZ-32.0))&&
+                  centerIsLeftOf_01 == this->isLeft(glm::vec2(planeVerts[0].x,planeVerts[0].z), glm::vec2(planeVerts[1].x,planeVerts[1].z), glm::vec2(cornerX,cornerZ-32.0))&&
+                  centerIsLeftOf_32 == this->isLeft(glm::vec2(planeVerts[3].x,planeVerts[3].z), glm::vec2(planeVerts[2].x,planeVerts[2].z), glm::vec2(cornerX,cornerZ-32.0)))
+            ){
+                // While any points of the Quad is on visible side of the frustum
+                this->pushQuad(glm::vec3(cornerX,oceanLevel,cornerZ), 32.0, playerPosition.y);
+                cornerX += 32.0; // move to next quad
+            }
+            // push one more to cover corner
+            this->pushQuad(glm::vec3(cornerX,oceanLevel,cornerZ), 32.0, playerPosition.y);
+            //try negative x
+            cornerX = startX-32.0;
+            while((centerIsLeftOf_03 == this->isLeft(glm::vec2(planeVerts[0].x,planeVerts[0].z), glm::vec2(planeVerts[3].x,planeVerts[3].z), glm::vec2(cornerX,cornerZ))&&
+                  centerIsLeftOf_12 == this->isLeft(glm::vec2(planeVerts[1].x,planeVerts[1].z), glm::vec2(planeVerts[2].x,planeVerts[2].z), glm::vec2(cornerX,cornerZ))&&
+                  centerIsLeftOf_01 == this->isLeft(glm::vec2(planeVerts[0].x,planeVerts[0].z), glm::vec2(planeVerts[1].x,planeVerts[1].z), glm::vec2(cornerX,cornerZ))&&
+                  centerIsLeftOf_32 == this->isLeft(glm::vec2(planeVerts[3].x,planeVerts[3].z), glm::vec2(planeVerts[2].x,planeVerts[2].z), glm::vec2(cornerX,cornerZ)))||
+                  //top of quad
+                  (centerIsLeftOf_03 == this->isLeft(glm::vec2(planeVerts[0].x,planeVerts[0].z), glm::vec2(planeVerts[3].x,planeVerts[3].z), glm::vec2(cornerX,cornerZ-32.0))&&
+                  centerIsLeftOf_12 == this->isLeft(glm::vec2(planeVerts[1].x,planeVerts[1].z), glm::vec2(planeVerts[2].x,planeVerts[2].z), glm::vec2(cornerX,cornerZ-32.0))&&
+                  centerIsLeftOf_01 == this->isLeft(glm::vec2(planeVerts[0].x,planeVerts[0].z), glm::vec2(planeVerts[1].x,planeVerts[1].z), glm::vec2(cornerX,cornerZ-32.0))&&
+                  centerIsLeftOf_32 == this->isLeft(glm::vec2(planeVerts[3].x,planeVerts[3].z), glm::vec2(planeVerts[2].x,planeVerts[2].z), glm::vec2(cornerX,cornerZ-32.0)))
+            ){
+                // While any points of the Quad is on visible side of the frustum
+                this->pushQuad(glm::vec3(cornerX,oceanLevel,cornerZ), 32.0, playerPosition.y);
+                cornerX -= 32.0; // move to next quad
+            }
+            // push one more to cover corner
+            this->pushQuad(glm::vec3(cornerX,oceanLevel,cornerZ), 32.0, playerPosition.y);
+
+            nearFarAxisOffset += nearFarAxisOffsetSign*32.0;
+            float nearFarIntersect_03 = ((startZ + nearFarAxisOffset)-b_03)/slope_03;
+            cornerX = std::floor(nearFarIntersect_03/32.0)*32.0;
+            cornerZ = std::floor((startZ + nearFarAxisOffset)/32.0)*32.0;
+        }
     }
-    }
+
     /*
     std::cout << std::endl;
     for(int i = 0; i < 4; i++)

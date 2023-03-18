@@ -28,6 +28,7 @@ class Ocean
     protected:
         std::vector<glm::vec3> vertices;
         std::vector<glm::vec3> frustumVerts;
+        glm::vec3 testPoint;
 
         unsigned int heightMap; //Height map texture ID
         glm::uvec2 heightMapUVsize; // width and height of height map
@@ -38,6 +39,8 @@ class Ocean
 
     private:
        float linePlaneIntersectT(glm::vec3 P0, glm::vec3 P1, glm::vec3 P3, glm::vec3 La, glm::vec3 Lb);
+       bool isLeft(glm::vec2 a, glm::vec2 b, glm::vec2 c);
+       void pushQuad(glm::vec3 corner, float scale, float playerY);
 };
 
 #endif // OCEAN_H
