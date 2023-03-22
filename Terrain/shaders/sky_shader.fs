@@ -6,6 +6,7 @@ uniform mat4 invPersMatrix;
 uniform vec4 viewport;
 uniform vec2 depthrange;
 uniform vec3 sunDirection;
+uniform float horizonAngle;
 
 vec4 CalcEyeFromWindow(in vec3 windowSpace)
 {
@@ -30,7 +31,7 @@ void main()
 	
 	if(dot(normalize(rayDir.xyz), sunDirection) > 0.999){
 		color = vec4(1,1,1,1);
-	}else if(rayDir.y < 0.0){
+	}else if(acos(dot(normalize(rayDir.xyz),vec3(0,-1,0))) < min(3.14/2-horizonAngle, 3.14/2)){
 		color = vec4(0.098f,0.137f,0.659f,1.0f);
 	}
 	

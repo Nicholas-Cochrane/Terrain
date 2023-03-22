@@ -188,7 +188,7 @@ int main()
     glEnable(GL_CULL_FACE);
 
     // Set up variables for various shaders and such
-    float nearPlane = 0.2f;
+    float nearPlane = 0.6f;
     float farPlane = 50000.0f;
     float screenQuadVerts[] = {
     -1.0f, -1.0f, 0.0f,
@@ -360,8 +360,10 @@ int main()
             //TODO: try stencil mask
             glDepthMask(GL_FALSE);
             screenQuadShader->use();
+            float horizionAngle = sqrt((2*camera.Position.y)/(6371000.0/(1-0.13)));
+            screenQuadShader->setFloat("horizonAngle",horizionAngle);
             screenQuadShader->setMat4("persMatrix",projection * originView);
-            screenQuadShader->setMat4("invPersMatrix", glm::inverse(projection * originView));
+            screenQuadShader->setMat4("invPersMatrix", glm::inverse(projection * originView)); //TODO calculate from scratch
             glUniform2fv(glGetUniformLocation(screenQuadShader->ID, "depthrange"), 1, glm::value_ptr(glm::vec2(depthRangeData[0], depthRangeData[1])));
             glUniform4fv(glGetUniformLocation(screenQuadShader->ID, "viewport"), 1, glm::value_ptr(glm::vec4(viewportData[0],viewportData[1],viewportData[2],viewportData[3])));
             glUniform3fv(glGetUniformLocation(screenQuadShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
@@ -392,7 +394,7 @@ int main()
 
             //Draw Ocean
             if(!tempSetUpOceanVerts){
-                OceanObj.setUpVertices(view, projection, camera.Position);
+                OceanObj.setUpVertices(view, projection, camera.Position, 0, 3, 3);
                 OceanObj.setUpBuffers();
                 //tempSetUpOceanVerts = true;
             }
