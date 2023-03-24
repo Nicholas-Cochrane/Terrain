@@ -27,7 +27,7 @@ void main()
 			
 	if (gl_InvocationID == 0)
     {
-		float temp = 1;
+		float temp = 2;
 		// ----------------------------------------------------------------------
 		//set the corresponding outer edge tessellation levels
 		gl_TessLevelOuter[0] = temp;

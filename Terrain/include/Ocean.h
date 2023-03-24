@@ -18,18 +18,22 @@
 class Ocean
 {
     public:
-        Ocean(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput);
+        Ocean(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, int widthInput, int heightInput);
         virtual ~Ocean();
         void draw(Shader &shader, Camera &camera, glm::mat4 &projectionMatrix, glm::mat4 &projectionMatrix2);
 
-        void setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, glm::vec3& playerPosition, float oceanLevel, int width, int height); // Create verts to pass to VBO
+        void setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, glm::vec3& playerPosition, float oceanLevel); // Create verts to pass to VBO
         void setUpBuffers(); // Create VAO/VBO
+        void setBuffers();//spit sending vertex data into different function
 
     protected:
         std::vector<glm::vec3> vertices;
         std::vector<glm::vec3> lineVerts;
         std::vector<glm::vec3> frustumVerts;
-        glm::vec3 testPoint;
+        std::vector<bool> currLine;
+        unsigned int width;
+        unsigned int height;
+
 
         unsigned int heightMap; //Height map texture ID
         glm::uvec2 heightMapUVsize; // width and height of height map
@@ -41,7 +45,6 @@ class Ocean
     private:
        float linePlaneIntersectT(glm::vec3 P0, glm::vec3 P1, glm::vec3 P3, glm::vec3 La, glm::vec3 Lb);
        bool isLeft(glm::vec2 a, glm::vec2 b, glm::vec2 c);
-       void pushQuad(glm::vec3 corner, float scale, float playerY);
 };
 
 #endif // OCEAN_H

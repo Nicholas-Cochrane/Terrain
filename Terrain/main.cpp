@@ -288,7 +288,7 @@ int main()
     camera.passHeightMapData(heightMapCopyArray, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
 
     // create ocean
-    Ocean OceanObj(computeHightMap, glm::vec2(computeHMWidth,computeHMHeight));
+    Ocean OceanObj(computeHightMap, glm::vec2(computeHMWidth,computeHMHeight), 32, 32);
 
     bool tempSetUpOceanVerts = false;
 
@@ -394,8 +394,7 @@ int main()
 
             //Draw Ocean
             if(!tempSetUpOceanVerts){
-                OceanObj.setUpVertices(view, projection, camera.Position, 0, 3, 3);
-                OceanObj.setUpBuffers();
+                OceanObj.setUpVertices(view, projection, camera.Position, 0);
                 //tempSetUpOceanVerts = true;
             }
             OceanObj.draw(*oceanShader, camera, projection, projection2);
