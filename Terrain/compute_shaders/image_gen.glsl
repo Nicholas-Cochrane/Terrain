@@ -193,10 +193,10 @@ void main() {
 	//vec2 randuv = randBool? -uv+1.0 : uv;
 	//noise = octPNoiseLoop((randuv*0.7)+lineDomainWarp(randuv*0.7), 9);
 	
-	if (noise < 0.2 && noise > -0.2){
+	/*if (noise < 0.2 && noise > -0.2){
 		noise = sign(noise) * noise * noise * 5;//TODO Replace with a spline that ends at corect/better slope.
 												// or replace with some post processing
-	}
+	}*/
 	//value.r = noise - smoothstep(0.6,0.99,dist)*0.4;
 	value.r = mix(noise,log(noise+2.16395)-1.15182,smoothstep(0.6,0.99,dist)); // lerp between noise and noise from 0 to -1 on a ln curve
 	value.g = 1.0;//octPNoiseLoop(uv*0.5, 9)*1.2;

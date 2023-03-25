@@ -96,7 +96,7 @@ int main()
     // ------------------------------
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     //glfwWindowHint(GLFW_MAXIMIZED , GL_TRUE);//Maximize window
 
@@ -187,9 +187,12 @@ int main()
     // Enable Back Face Culling
     glEnable(GL_CULL_FACE);
 
+    //set zbuffer/clip space to be from 0 to 1 and not -1 to 1 to reduce z fighting
+    glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+
     // Set up variables for various shaders and such
-    float nearPlane = 0.6f;
-    float farPlane = 50000.0f;
+    float nearPlane = 0.4f;
+    float farPlane = 30000.0f;
     float screenQuadVerts[] = {
     -1.0f, -1.0f, 0.0f,
      1.0f, -1.0f, 0.0f,
@@ -409,6 +412,8 @@ int main()
                 ImGui::Text(positionStr.c_str());
                 positionStr = "Y:" + std::to_string(camera.Position.y);
                 ImGui::Text(positionStr.c_str());
+                positionStr = "Y ground:" + std::to_string(camera.Position.y -1.7f);
+                ImGui::Text(positionStr.c_str());
                 positionStr = "Z:" + std::to_string(camera.Position.z);
                 ImGui::Text(positionStr.c_str());
 
@@ -487,6 +492,7 @@ int main()
                     // make sure writing to image has finished before read
                     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
                 }
+
                 std::string SeedButtonText = "Seed:" + std::to_string(seed);
                 if (ImGui::Button(SeedButtonText.c_str())){
                     seed = rand();
