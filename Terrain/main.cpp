@@ -291,7 +291,7 @@ int main()
     camera.passHeightMapData(heightMapCopyArray, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
 
     // create ocean
-    Ocean OceanObj(computeHightMap, glm::vec2(computeHMWidth,computeHMHeight), 32, 32);
+    Ocean OceanObj(computeHightMap, glm::vec2(computeHMWidth,computeHMHeight), 5, 5);
 
     bool tempSetUpOceanVerts = false;
 
@@ -400,6 +400,9 @@ int main()
                 OceanObj.setUpVertices(view, projection, camera.Position, 0);
                 //tempSetUpOceanVerts = true;
             }
+            oceanShader->use();
+            glUniform3fv(glGetUniformLocation(oceanShader->ID, "playerPos"),1, glm::value_ptr(camera.Position));
+            glUniform3fv(glGetUniformLocation(oceanShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
             OceanObj.draw(*oceanShader, camera, projection, projection2);
 
 
@@ -496,6 +499,10 @@ int main()
                 std::string SeedButtonText = "Seed:" + std::to_string(seed);
                 if (ImGui::Button(SeedButtonText.c_str())){
                     seed = rand();
+                }
+
+                if(ImGui::Button("Print verts")){
+                    OceanObj.printLineVerts();
                 }
                 ImGui::Checkbox("Metrics Window", &metricsWindowToggle);
                 ImGui::Checkbox("Demo Window", &demoWindowToggle);

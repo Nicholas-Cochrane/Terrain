@@ -148,6 +148,7 @@ void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, gl
             result = this->linePlaneIntersectT(P0, P1, P2, temp0, temp2);
             if(result > -0.000001f){
                 lineVerts.push_back(temp0 + (temp2 - temp0)* result);
+                lineVerts.back().y = 0.0;
                 //std::cout << "pass: " << result << std::endl;
                 currLine.at(x) = true;
             }else{
@@ -225,13 +226,6 @@ void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, gl
         }
     }
 
-    /*for(unsigned int i = 0; i < lineVerts.size(); i++){
-
-        std::cout << lineVerts[i].x << " " << lineVerts[i].y << " " << lineVerts[i].z << std::endl;
-    }
-    std::cout << "size: " << lineVerts.size() << std::endl;
-    std::cout << "_________"<< std::endl;*/
-
     if(lineVerts.size() != 0){
         for(unsigned int i = 0; i < lineVerts.size()-(width+1); i += width+1){
             for(unsigned int x = 0; x < width; x++){
@@ -252,6 +246,17 @@ void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, gl
         }
     }
 }
+
+void Ocean::printLineVerts()
+{
+    for(unsigned int i = 0; i < lineVerts.size(); i++){
+
+        std::cout << lineVerts[i].x << " " << lineVerts[i].y << " " << lineVerts[i].z << std::endl;
+    }
+    std::cout << "size: " << lineVerts.size() << std::endl;
+    std::cout << "_________"<< std::endl;
+}
+
 
 void Ocean::setUpBuffers()
 {

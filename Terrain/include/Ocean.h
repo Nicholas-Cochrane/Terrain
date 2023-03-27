@@ -21,6 +21,7 @@ class Ocean
         Ocean(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, int widthInput, int heightInput);
         virtual ~Ocean();
         void draw(Shader &shader, Camera &camera, glm::mat4 &projectionMatrix, glm::mat4 &projectionMatrix2);
+        void printLineVerts();
 
         void setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, glm::vec3& playerPosition, float oceanLevel); // Create verts to pass to VBO
         void setUpBuffers(); // Create VAO/VBO
