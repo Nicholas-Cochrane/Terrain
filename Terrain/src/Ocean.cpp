@@ -33,7 +33,7 @@ Ocean::~Ocean()
 
 }
 
-void Ocean::draw(Shader& shader, Camera& camera, glm::mat4& projectionMatrix, glm::mat4& projectionMatrix2)
+void Ocean::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix)
 {
 
     this->setBuffers();
@@ -45,7 +45,7 @@ void Ocean::draw(Shader& shader, Camera& camera, glm::mat4& projectionMatrix, gl
     glActiveTexture(GL_TEXTURE0); // set sampler to texture
     glBindTexture(GL_TEXTURE_2D, heightMap);
 
-    shader.setMat4("pvMatrix", projectionMatrix * camera.GetViewMatrix() );
+    shader.setMat4("pvMatrix", projectionMatrix * viewMatrix); // view matrix is from (0,pos.y,0)
 
     glBindVertexArray(VAO);
     //send verts as patch to Tessellation shader TEMP SET TO FAN
@@ -76,15 +76,12 @@ void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, gl
 {
     ///TODO improve when close to near clipping plane
     /// or in practical terms when player is ~2 meters from ocean level
-
-
-    ///TODO Find and Fix edge case that causes some vertexs near the far plane to scatter (possible due to "forcing" failed intersects or it may be due to accepting intercepts over 1.0 along line
     vertices.clear();
     frustumVerts.clear();
     lineVerts.clear();
     currLine.clear();
     currLine.resize(width+1);
-    glm::mat4 inv = glm::inverse(projectionMatrix * viewMatrix); ///TODO calculate from scratch
+    glm::mat4 inv = glm::inverse(viewMatrix) * glm::inverse(projectionMatrix);
     glm::vec4 temp;
 
     //clip space to frustum world space coords
@@ -132,8 +129,8 @@ void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, gl
 
     //bottom of screen to top of screen
     for(unsigned int y = 0; y <= height; y++){
+        float clipY = (y/static_cast<float>(height))*2 - 1;
         for(unsigned int x = 0; x <= width; x++){
-            float clipY = (y/static_cast<float>(height))*2 - 1;
             float clipX = (x/static_cast<float>(width))*2 - 1;
             //close left
             temp = inv * glm::vec4(clipX,clipY,0,1);
@@ -164,11 +161,13 @@ void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, gl
          }
 
          if(numPassed != width+1 && numPassed != 0){// if all the same do nothing
+            std::cout << ((width+1) - numPassed) << std::endl;
             if(numPassed < width/2){// if less than half passed remove them from the list
                 lineVerts.erase(lineVerts.end()-numPassed, lineVerts.end());
             }else{ // if the majority passed fix the non passing verts by forcing them to pass
                 std::vector<glm::vec3> fixedLine;
                 fixedLine.resize(width+1);
+                float clipY = (y/static_cast<float>(height))*2 - 1;
                 for(int i = width; i >= 0; i--){
                     if(currLine.at(i) == true){
                         //if vert passed then take it from lineVerts
@@ -176,7 +175,6 @@ void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, gl
                         lineVerts.pop_back();
                     }else{
                         //if vert failed, generate it
-                        float clipY = (y/static_cast<float>(height))*2 - 1;
                         float clipX = (i/static_cast<float>(width))*2 - 1;
                         //close left
                         temp = inv * glm::vec4(clipX,clipY,0,1);

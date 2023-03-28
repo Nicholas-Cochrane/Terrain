@@ -18,8 +18,8 @@ out vec4 FragColor;
 
 float LinearizeDepth(float depth) 
 {
-    float z = depth * 2.0 - 1.0; // back to NDC 
-    return (2.0 * nearPlane * farPlane) / (farPlane + nearPlane - z * (farPlane - nearPlane));	
+    // new 0 to 1 linerized depth value	
+	return nearPlane * farPlane / (farPlane + depth * (nearPlane - farPlane));
 }
 
 vec4 cubic(float v){
@@ -95,12 +95,7 @@ void main()
 		col = vec4(0.659,0.631,0.569, 1.0f);//rock
 	}
 	float diff = max(0.4+0.6*dot(normal, sunDirection), 0.0);
-	float depth = LinearizeDepth(gl_FragCoord.z) / farPlane; // divide by far for demonstration
-	//change to use V as it is fixed for 0->1 depth buffer
-	/*float linearize_depth(float d,float zNear,float zFar)
-	{
-    return zNear * zFar / (zFar + d * (zNear - zFar));
-	}*/
+	float depth = LinearizeDepth(gl_FragCoord.z) / farPlane;
 	
 	float fogFactor = 1/pow(2,pow(depth*5.0f,1.4));
 	vec4 fogColor = vec4(0.788f,0.906f,1.0f,1.0f);

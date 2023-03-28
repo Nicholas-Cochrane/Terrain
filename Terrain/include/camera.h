@@ -80,6 +80,11 @@ public:
         return glm::lookAt(glm::vec3(0,0,0), Front, Up);
     }
 
+    glm::mat4 GetOriginYCorrectedViewMatrix()
+    {
+        return glm::lookAt(glm::vec3(0,Position.y,0), glm::vec3(0,Position.y,0) + Front, Up);
+    }
+
     void passHeightMapData(float *heightMapPtr, unsigned int *height, unsigned int *width, const int* maxHeight, const float* inGameSize, Transfer_Status *status){
         heightMapArray = heightMapPtr;
         heightMapHeight = height;
@@ -103,7 +108,7 @@ public:
         if (direction == RIGHT)
             Position += Right * velocity;
 
-        glm::vec2 normalizedPlayerPos = glm::vec2(Position.x / *gameSize, -Position.z/ *gameSize); //(0,0) is Bottom left, (1,1) is top right
+        glm::vec2 normalizedPlayerPos = glm::vec2((Position.x / *gameSize)+0.5, (-Position.z/ *gameSize)+0.5); //(0,0) is Bottom left, (1,1) is top right
         if(normalizedPlayerPos.x > 0.0 && normalizedPlayerPos.x < 1.0 &&
            normalizedPlayerPos.y > 0.0 && normalizedPlayerPos.y < 1.0 &&
            heightMapStatus != NULL && *heightMapStatus == COMPLETE)

@@ -11,6 +11,8 @@ layout (quads, equal_spacing, ccw) in;
 //uniform mat4 mvMatrix;
 //uniform mat4 mpvMatrix2;
 uniform mat4 pvMatrix;
+uniform vec3 playerPos;
+uniform float time;
 
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 //in vec2 TextureCoord[];
@@ -18,6 +20,7 @@ uniform mat4 pvMatrix;
 out vec4 FragPos;
 out vec4 Normal;
 
+#define PI 3.1415926535897932384626433832795
 
 void main()
 {
@@ -36,13 +39,25 @@ void main()
     vec4 uVec = p01 - p00;
     vec4 vVec = p10 - p00;
     Normal = normalize( -vec4(cross(vVec.xyz, uVec.xyz), 0) ); // inital normal before tessellation
-	//Normal = vec4(0,1,0,1);
 
     // bilinearly interpolate position coordinate across patch
     vec4 p0 = (p01 - p00) * u + p00;
     vec4 p1 = (p11 - p10) * u + p10;
     vec4 p = (p1 - p0) * v + p0;
+	
+	//----------------------------------------------------------------------
+	//Wave Generation
+	float waveLength = 100;
+	float amplitude = 1;
+	float speed = 50;
+	
+	vec3 worldPos = playerPos + p.xyz;
+	float k = 2 * PI / waveLength;
+	float f = k * (worldPos.x - speed * time);
+	p.y = amplitude * sin(f);
 
+	//vec3 tangent = normalize(vec3(1, k * amplitude * cos(f), 0));
+	//Normal = vec4(-tangent.y, tangent.x, 0,1);
 
     // ----------------------------------------------------------------------
     // output patch point position in clip space

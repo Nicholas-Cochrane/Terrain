@@ -82,9 +82,9 @@ bool keyDown[GLFW_KEY_MENU + 1] = {false}; // if key is currently being pressed
 
 
 // timing
-float deltaTime = 0.0f;
-float lastFrame = 0.0f;
-float lastSec = 0.0f;
+double deltaTime = 0.0f;
+double lastFrame = 0.0f;
+double lastSec = 0.0f;
 int frameNumber = 0;
 int FPS = 0;
 
@@ -190,9 +190,10 @@ int main()
     //set zbuffer/clip space to be from 0 to 1 and not -1 to 1 to reduce z fighting
     glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 
+
     // Set up variables for various shaders and such
-    float nearPlane = 0.4f;
-    float farPlane = 30000.0f;
+    float nearPlane = 0.38f;
+    float farPlane = 25000.0f;
     float screenQuadVerts[] = {
     -1.0f, -1.0f, 0.0f,
      1.0f, -1.0f, 0.0f,
@@ -271,7 +272,7 @@ int main()
     const float gameSize = (Divisions * Chunk_Width);//length of map in units
     for(int x = 0; x < Divisions; x++){
         for(int z = 0; z < Divisions; z++){// note: -z is forward in coord space
-            chunkList.push_back(new TessChunk(glm::vec3(x * Chunk_Width ,0.0f,-z * Chunk_Width) // root of chunk (0,0) with x+ and z-
+            chunkList.push_back(new TessChunk(glm::vec3((x * Chunk_Width)-(gameSize/2) ,0.0f,(-z * Chunk_Width)+(gameSize/2)) // root of chunk (0,0) with x+ and z-
                                               , Chunk_Width / Patchs_Per_Edge //width of each patch
                                               , Patchs_Per_Edge // number of patches per edge
                                               , texture1, computeHightMap // texture and height map texture
@@ -291,7 +292,11 @@ int main()
     camera.passHeightMapData(heightMapCopyArray, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
 
     // create ocean
-    Ocean OceanObj(computeHightMap, glm::vec2(computeHMWidth,computeHMHeight), 5, 5);
+    Ocean OceanObj(computeHightMap, glm::vec2(computeHMWidth,computeHMHeight), 32, 32);
+    // set Ocean Shader Uniforms
+    oceanShader->use();
+    oceanShader->setFloat("nearPlane", nearPlane);
+    oceanShader->setFloat("farPlane", farPlane);
 
     bool tempSetUpOceanVerts = false;
 
@@ -316,7 +321,7 @@ int main()
     {
         //glCheckError();
         //Delta time Calculation
-        float currentFrame = static_cast<float>(glfwGetTime());
+        double currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
@@ -352,6 +357,7 @@ int main()
             //Global -> view
             glm::mat4 view = camera.GetViewMatrix();
             glm::mat4 originView = camera.GetOriginViewMatrix();
+            glm::mat4 YCorrectedOriginView = camera.GetOriginYCorrectedViewMatrix();
 
             //View -> Projection
             glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(viewportData[2])/ static_cast<float>(viewportData[3]), nearPlane, farPlane);
@@ -366,7 +372,7 @@ int main()
             float horizionAngle = sqrt((2*camera.Position.y)/(6371000.0/(1-0.13)));
             screenQuadShader->setFloat("horizonAngle",horizionAngle);
             screenQuadShader->setMat4("persMatrix",projection * originView);
-            screenQuadShader->setMat4("invPersMatrix", glm::inverse(projection * originView)); //TODO calculate from scratch
+            screenQuadShader->setMat4("invPersMatrix", glm::inverse(originView) * glm::inverse(projection ));
             glUniform2fv(glGetUniformLocation(screenQuadShader->ID, "depthrange"), 1, glm::value_ptr(glm::vec2(depthRangeData[0], depthRangeData[1])));
             glUniform4fv(glGetUniformLocation(screenQuadShader->ID, "viewport"), 1, glm::value_ptr(glm::vec4(viewportData[0],viewportData[1],viewportData[2],viewportData[3])));
             glUniform3fv(glGetUniformLocation(screenQuadShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
@@ -397,13 +403,14 @@ int main()
 
             //Draw Ocean
             if(!tempSetUpOceanVerts){
-                OceanObj.setUpVertices(view, projection, camera.Position, 0);
+                OceanObj.setUpVertices(YCorrectedOriginView, projection, camera.Position, 0);
                 //tempSetUpOceanVerts = true;
             }
             oceanShader->use();
+            oceanShader->setFloat("time", static_cast<float>(currentFrame));///TODO fix potential problems with lack of precision with floats
             glUniform3fv(glGetUniformLocation(oceanShader->ID, "playerPos"),1, glm::value_ptr(camera.Position));
             glUniform3fv(glGetUniformLocation(oceanShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
-            OceanObj.draw(*oceanShader, camera, projection, projection2);
+            OceanObj.draw(*oceanShader, YCorrectedOriginView, projection);
 
 
 
@@ -475,11 +482,15 @@ int main()
                 if (ImGui::Button("Reload Sky Shader")){
                     delete screenQuadShader;
                     screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs", NULL, NULL);
+                    screenQuadShader->use();
                     glUniform3fv(glGetUniformLocation(screenQuadShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
                 }
                 if (ImGui::Button("Reload Ocean Shader")){
                     delete oceanShader;
                     oceanShader = new Shader("shaders/ocean_shader.vs", "shaders/ocean_shader.fs", "shaders/ocean_shader.tcs", "shaders/ocean_shader.tes");
+                    oceanShader->use();
+                    oceanShader->setFloat("nearPlane", nearPlane);
+                    oceanShader->setFloat("farPlane", farPlane);
                 }
                 if (ImGui::Button("Reload Compute Shader")){
                     delete imageGenShader;
@@ -718,7 +729,7 @@ int main()
                 const float halfIconSize = std::max(16.0f, std::min(mapSize/15.0f, 30.0f))/2.0f; // map icon size between 16-30 pixels scaled by dividing size of map by some factor that looks good
                 // rotation matrix (camera -90 is north and rotates the wrong way so it must be corrected by subtracting 90 and taking the negitive
                 glm::mat2 rotMatrix = glm::mat2(glm::vec2(cos(glm::radians(-camera.Yaw - 90)),sin(glm::radians(-camera.Yaw - 90))),glm::vec2(-sin(glm::radians(-camera.Yaw - 90)),cos(glm::radians(-camera.Yaw - 90))));
-                glm::vec2 normalizedIconPos = glm::vec2(camera.Position.x /gameSize, (camera.Position.z+gameSize)/gameSize); //(0,0) is top left, (1,1) is bottom right
+                glm::vec2 normalizedIconPos = glm::vec2((camera.Position.x /gameSize)+0.5, ((camera.Position.z+gameSize)/gameSize)-0.5); //(0,0) is top left, (1,1) is bottom right
                 glm::vec2 iconCenter = glm::vec2(ImGui::GetItemRectMin().x + (mapSize * normalizedIconPos.x), ImGui::GetItemRectMin().y + (mapSize * normalizedIconPos.y));
                 glm::vec2 a = glm::vec2(-halfIconSize,-halfIconSize) * rotMatrix + iconCenter;
                 glm::vec2 b = glm::vec2(-halfIconSize, halfIconSize) * rotMatrix + iconCenter;
