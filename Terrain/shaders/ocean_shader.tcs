@@ -14,6 +14,8 @@ layout(vertices=4) out;
 //uniform vec4 camPos;            // Camera coordinates
 //uniform float heightScale;    	// (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
 
+uniform uint tessellationLevel;
+
 
 // varying input from vertex shader
 //in vec2 TexCoord[];
@@ -27,17 +29,16 @@ void main()
 			
 	if (gl_InvocationID == 0)
     {
-		float temp = 16;
 		// ----------------------------------------------------------------------
 		//set the corresponding outer edge tessellation levels
-		gl_TessLevelOuter[0] = temp;
-		gl_TessLevelOuter[1] = temp;
-		gl_TessLevelOuter[2] = temp;
-		gl_TessLevelOuter[3] = temp;
+		gl_TessLevelOuter[0] = tessellationLevel;
+		gl_TessLevelOuter[1] = tessellationLevel;
+		gl_TessLevelOuter[2] = tessellationLevel;
+		gl_TessLevelOuter[3] = tessellationLevel;
 
 		// ----------------------------------------------------------------------
 		//set the inner tessellation levels to the max of the two parallel edges
-		gl_TessLevelInner[0] = temp;
-		gl_TessLevelInner[1] = temp;
+		gl_TessLevelInner[0] = tessellationLevel;
+		gl_TessLevelInner[1] = tessellationLevel;
     }
 }

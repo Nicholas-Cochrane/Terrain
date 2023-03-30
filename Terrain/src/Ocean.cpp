@@ -33,6 +33,22 @@ Ocean::~Ocean()
 
 }
 
+void Ocean::changeResolution(unsigned int newWidth, unsigned int newHeight)
+{
+    width = newWidth;
+    height = newHeight;
+
+    setUpBuffers();
+}
+
+void Ocean::getResolution(unsigned int* outWidth, unsigned int* outHeight)
+{
+    *outWidth = width;
+    *outHeight = height;
+
+}
+
+
 void Ocean::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix)
 {
 

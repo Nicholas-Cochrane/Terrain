@@ -14,6 +14,9 @@ uniform mat4 modelMatrix;       // model matrix to move points from movdel space
 uniform vec4 camPos;            // Camera coordinates
 uniform float heightScale;    	// (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
 
+uniform float minimumTessDist;
+uniform float maximumTessDist; 
+
 
 // varying input from vertex shader
 in vec2 TexCoord[];
@@ -41,8 +44,6 @@ void main()
 		
 		const int MIN_TESS_LEVEL = 1;
 		const int MAX_TESS_LEVEL = 64;
-		const float MIN_DISTANCE = 64;//20
-		const float MAX_DISTANCE = 1000;//800
 		
 		//step 1; transform each vertx to screen space
 		//--------------------------------------------
@@ -88,16 +89,16 @@ void main()
 
 			// ----------------------------------------------------------------------
 			// Step 3: "distance" from camera scaled between 0 and 1
-			float distance00 = clamp((abs(eyeSpacePos00.z)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.0, 1.0);
-			float distance01 = clamp((abs(eyeSpacePos01.z)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.0, 1.0);
-			float distance10 = clamp((abs(eyeSpacePos10.z)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.0, 1.0);
-			float distance11 = clamp((abs(eyeSpacePos11.z)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.0, 1.0);*/
+			float distance00 = clamp((abs(eyeSpacePos00.z)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.0, 1.0);
+			float distance01 = clamp((abs(eyeSpacePos01.z)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.0, 1.0);
+			float distance10 = clamp((abs(eyeSpacePos10.z)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.0, 1.0);
+			float distance11 = clamp((abs(eyeSpacePos11.z)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.0, 1.0);*/
 			
 			// power use to make fall of of tessellation not liner but exponential
-			float distance00 = clamp(pow((distance(camPos, modelMatrix *point00)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.4f), 0.0, 1.0);
-			float distance01 = clamp(pow((distance(camPos, modelMatrix *point01)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.4f), 0.0, 1.0);
-			float distance10 = clamp(pow((distance(camPos, modelMatrix *point10)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.4f), 0.0, 1.0);
-			float distance11 = clamp(pow((distance(camPos, modelMatrix *point11)-MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.4f), 0.0, 1.0);
+			float distance00 = clamp(pow((distance(camPos, modelMatrix *point00)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.4f), 0.0, 1.0);
+			float distance01 = clamp(pow((distance(camPos, modelMatrix *point01)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.4f), 0.0, 1.0);
+			float distance10 = clamp(pow((distance(camPos, modelMatrix *point10)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.4f), 0.0, 1.0);
+			float distance11 = clamp(pow((distance(camPos, modelMatrix *point11)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.4f), 0.0, 1.0);
 
 			// ----------------------------------------------------------------------
 			// Step 4: interpolate edge tessellation level based on closer vertex

@@ -20,6 +20,8 @@ class Ocean
     public:
         Ocean(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, int widthInput, int heightInput);
         virtual ~Ocean();
+        void changeResolution(unsigned int newWidth, unsigned int newHeight);
+        void getResolution (unsigned int* outWidth, unsigned int* outHeight);
         void draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix);
         void printLineVerts();
 

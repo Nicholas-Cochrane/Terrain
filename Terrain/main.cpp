@@ -187,6 +187,7 @@ int main()
     // Enable Back Face Culling
     glEnable(GL_CULL_FACE);
 
+
     //set zbuffer/clip space to be from 0 to 1 and not -1 to 1 to reduce z fighting
     glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 
@@ -280,21 +281,39 @@ int main()
                                               , (1.0f/Divisions))); //uv cord offset (UV coord from bottom to top/ left to right)
         }
     }
+
+
+    // Settings for use in graphics window
+    const float defaultTerrainMinTessDist = 64.0;
+    const float defaultTerrainMaxTessDist = 1000.0;
+    float TerrainMinTessDist = defaultTerrainMinTessDist;
+    float TerrainMaxTessDist = defaultTerrainMaxTessDist;
+
     // set Tess Uniforms
     tessShader->use();
     tessShader->setFloat("uTexelSize", 1.0/computeHMWidth); // 1/total size of terrain  old: 1.0f/ (Divisions * Chunk_Width)
     tessShader->setFloat("heightScale", Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
     tessShader->setFloat("nearPlane", nearPlane);
     tessShader->setFloat("farPlane", farPlane);
+    tessShader->setFloat("minimumTessDist", TerrainMinTessDist);
+    tessShader->setFloat("maximumTessDist", TerrainMaxTessDist);
     glUniform3fv(glGetUniformLocation(tessShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
 
     //Pass height map Variables to Camera
     camera.passHeightMapData(heightMapCopyArray, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
 
     // create ocean
-    Ocean OceanObj(computeHightMap, glm::vec2(computeHMWidth,computeHMHeight), 32, 32);
+    // Settings for use in graphics window
+    const unsigned int defaultOceanRes = 32;
+    const unsigned int defaultOceanTess = 16;
+    unsigned int oceanResHeight = defaultOceanRes;
+    unsigned int oceanResWidth = defaultOceanRes;
+    unsigned int oceanTessLevel = defaultOceanTess;
+
+    Ocean OceanObj(computeHightMap, glm::vec2(computeHMWidth,computeHMHeight), oceanResWidth, oceanResHeight);
     // set Ocean Shader Uniforms
     oceanShader->use();
+    oceanShader->setUInt("tessellationLevel",oceanTessLevel);
     oceanShader->setFloat("nearPlane", nearPlane);
     oceanShader->setFloat("farPlane", farPlane);
 
@@ -466,6 +485,7 @@ int main()
             static bool metricsWindowToggle = false;
             static bool demoWindowToggle = false;
             static bool weatherWindowToggle = true;
+            static bool graphicsWindowToggle = true;
 
             ImGui::Begin("Debug", NULL, ImGuiWindowFlags_NoScrollbar);
                 if (ImGui::Button("Reload Tess Shader")){
@@ -477,6 +497,8 @@ int main()
                     tessShader->setFloat("heightScale", Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
                     tessShader->setFloat("nearPlane", nearPlane);
                     tessShader->setFloat("farPlane", farPlane);
+                    tessShader->setFloat("minimumTessDist", TerrainMinTessDist);
+                    tessShader->setFloat("maximumTessDist", TerrainMaxTessDist);
                     glUniform3fv(glGetUniformLocation(tessShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
                 }
                 if (ImGui::Button("Reload Sky Shader")){
@@ -489,6 +511,7 @@ int main()
                     delete oceanShader;
                     oceanShader = new Shader("shaders/ocean_shader.vs", "shaders/ocean_shader.fs", "shaders/ocean_shader.tcs", "shaders/ocean_shader.tes");
                     oceanShader->use();
+                    oceanShader->setUInt("tessellationLevel",oceanTessLevel);
                     oceanShader->setFloat("nearPlane", nearPlane);
                     oceanShader->setFloat("farPlane", farPlane);
                 }
@@ -518,6 +541,7 @@ int main()
                 ImGui::Checkbox("Metrics Window", &metricsWindowToggle);
                 ImGui::Checkbox("Demo Window", &demoWindowToggle);
                 ImGui::Checkbox("Weather Window", &weatherWindowToggle);
+                ImGui::Checkbox("Graphics Window", &graphicsWindowToggle);
             ImGui::End();
 
             if(weatherWindowToggle){
@@ -594,6 +618,138 @@ int main()
                     tessShader->use();
                     tessShader->setFloat("latitude", latitude);
                     glUniform3fv(glGetUniformLocation(tessShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
+                ImGui::End();
+            }
+
+            if(graphicsWindowToggle){
+                ImGui::Begin("Graphics");
+                    static unsigned int oceanTessDisplay = oceanTessLevel;
+                    static float terrainMinDisplay = TerrainMinTessDist;
+                    static float terrainMaxDisplay = TerrainMaxTessDist;
+                    if(ImGui::Button("Clear All to Current Value")){
+                        //ocean Super Resolution
+                        OceanObj.getResolution(&oceanResWidth,&oceanResHeight);
+                        //Ocean Tessellation
+                        oceanTessDisplay = oceanTessLevel;
+                        //Terrain Tessellation
+                        terrainMinDisplay = TerrainMinTessDist;
+                        terrainMaxDisplay = TerrainMaxTessDist;
+                    }
+                    if(ImGui::Button("Reset All to Default")){
+                        //ocean Super Resolution
+                        oceanResWidth = defaultOceanRes;
+                        oceanResHeight = defaultOceanRes;
+                        OceanObj.changeResolution(oceanResWidth,oceanResHeight);
+                        //Ocean Tessellation
+                        oceanTessLevel = defaultOceanTess;
+                        oceanTessDisplay = oceanTessLevel;
+                        oceanShader->use();
+                        oceanShader->setUInt("tessellationLevel",oceanTessLevel);
+                        //Terrain Tessellation
+                        TerrainMinTessDist = defaultTerrainMinTessDist;
+                        TerrainMaxTessDist = defaultTerrainMaxTessDist;
+                        terrainMinDisplay = TerrainMinTessDist;
+                        terrainMaxDisplay = TerrainMaxTessDist;
+                        tessShader->use();
+                        tessShader->setFloat("minimumTessDist", TerrainMinTessDist);
+                        tessShader->setFloat("maximumTessDist", TerrainMaxTessDist);
+
+                    }
+
+                    const unsigned int superResLower = 0;
+                    const unsigned int superResUpper = 100;
+                    ImGui::Text("Ocean Super Resolution:");
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("(?)");
+                    if (ImGui::IsItemHovered()){
+                        ImGui::BeginTooltip();
+                        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+                        ImGui::TextUnformatted(("The number of division the screen \n"
+                                               "is broken into for rendering the Ocean. \n"
+                                               "(Expensive but accurate) Default:" + std::to_string(defaultOceanRes) + 'x' + std::to_string(defaultOceanRes)).c_str());
+                        ImGui::PopTextWrapPos();
+                        ImGui::EndTooltip();
+                    }
+                    if(ImGui::Button("Apply##oceanSupRes")){
+                        OceanObj.changeResolution(oceanResWidth,oceanResHeight);
+                    }
+                    ImGui::SameLine();
+                    ImGui::Dummy(ImVec2(5.0,0.0));
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 3);
+                    ImGui::DragScalar("##oceanSupResWidth", ImGuiDataType_U32, &oceanResWidth, 1, &superResLower, &superResUpper, "%d%", ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::SameLine();
+                    ImGui::Text("X");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 3);
+                    ImGui::DragScalar("##oceanSupResHeight", ImGuiDataType_U32, &oceanResHeight, 1, &superResLower, &superResUpper, "%d%", ImGuiSliderFlags_AlwaysClamp);
+
+
+                    const unsigned int oceanTessLower = 0;
+                    const unsigned int oceanTessUpper = 64;
+                    ImGui::Text("Ocean Tessellation Level:");
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("(?)");
+                    if (ImGui::IsItemHovered()){
+                        ImGui::BeginTooltip();
+                        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+                        ImGui::TextUnformatted(("The number of division the divsions of\n"
+                                               "the super resolution is broken into for\n"
+                                               "rendering the Ocean. \n"
+                                               "(Cheap but non-linear) Default:" + std::to_string(defaultOceanTess)).c_str());
+                        ImGui::PopTextWrapPos();
+                        ImGui::EndTooltip();
+                    }
+                    if(ImGui::Button("Apply##oceanTess")){
+                        oceanTessLevel = oceanTessDisplay;
+                        oceanShader->use();
+                        oceanShader->setUInt("tessellationLevel",oceanTessLevel);
+                    }
+                    ImGui::SameLine();
+                    ImGui::Dummy(ImVec2(5.0,0.0));
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 3);
+                    ImGui::DragScalar("##oceanTess", ImGuiDataType_U32, &oceanTessDisplay, 1, &oceanTessLower, &oceanTessUpper, "%d%", ImGuiSliderFlags_AlwaysClamp);
+
+                    const float terrainTessLower = 0.0;
+                    const float terrainTessUpper = farPlane;
+                    ImGui::Text("Terrain TessellationDistance:");
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("(?)");
+                    if (ImGui::IsItemHovered()){
+                        ImGui::BeginTooltip();
+                        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+                        ImGui::TextUnformatted(("How close to the player should the\n"
+                                                "highest/lowest terrain resolution be set.\n"
+                                                "(Larger = more expensive)\n"
+                                                "Default: 0 -> " + std::to_string(static_cast<int>(defaultTerrainMinTessDist)) +
+                                                " -> " + std::to_string(static_cast<int>(defaultTerrainMaxTessDist)) + " -> Horizon" ).c_str());
+                        ImGui::PopTextWrapPos();
+                        ImGui::EndTooltip();
+                    }
+                    if(ImGui::Button("Apply##terrainTessMin")){
+                        TerrainMinTessDist = terrainMinDisplay;
+                        TerrainMaxTessDist = terrainMaxDisplay;
+                        tessShader->use();
+                        tessShader->setFloat("minimumTessDist", TerrainMinTessDist);
+                        tessShader->setFloat("maximumTessDist", TerrainMaxTessDist);
+                    }
+                    ImGui::SameLine();
+                    ImGui::Dummy(ImVec2(5.0,0.0));
+                    ImGui::SameLine();
+                    ImGui::Text("Near:");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
+                    ImGui::DragScalar("##terrainTessMin", ImGuiDataType_Float, &terrainMinDisplay, 1.0, &terrainTessLower, &terrainMaxDisplay, "%.0f", ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::SameLine();
+                    ImGui::Text("Far:");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
+                    ImGui::DragScalar("##terrainTessMzn", ImGuiDataType_Float, &terrainMaxDisplay, 1.0, &terrainMinDisplay, &terrainTessUpper, "%.0f", ImGuiSliderFlags_AlwaysClamp);
+
+
+
+
                 ImGui::End();
             }
 

@@ -41,8 +41,10 @@ void main()
     float spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
 	vec3 specular = vec3(0.3) * spec; // assuming bright white light color
 	
+	//float gamma = 2.2;//TODO add gamma correction?
+	
 	float depth = LinearizeDepth(gl_FragCoord.z) / farPlane; 
 	float fogFactor = 1/pow(2,pow(depth*5.0f,1.4));
-	vec4 fogColor = vec4(0.788f,0.906f,1.0f,1.0f);
-	FragColor = mix(fogColor,vec4(ambient + diffuse + specular,1.0f), fogFactor);
+	vec3 fogColor = vec3(0.788f,0.906f,1.0f);
+	FragColor = vec4(mix(fogColor,ambient + diffuse + specular, fogFactor),1.0);
 }
