@@ -30,6 +30,7 @@
 #include "include/TessChunk.h"
 #include "include/CustomEnumerators.h"
 #include "include/Ocean.h"
+#include "include/Grass.h"
 #define GLFW_DLL
 
 //Function Delectations
@@ -174,6 +175,7 @@ int main()
     Shader* mapShader = new Shader("shaders/imgui_shader.vs", "shaders/imgui_shader.fs", NULL, NULL);
     Shader* screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs", NULL, NULL);
     Shader* oceanShader = new Shader("shaders/ocean_shader.vs", "shaders/ocean_shader.fs", "shaders/ocean_shader.tcs", "shaders/ocean_shader.tes");
+    Shader* grassShader = new Shader("shaders/grass_shader.vs", "shaders/grass_shader.fs", NULL, NULL);
     glCheckError();
     ComputeShader* imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
 
@@ -302,6 +304,22 @@ int main()
     //Pass height map Variables to Camera
     camera.passHeightMapData(heightMapCopyArray, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
 
+    // create grass
+    const float defaultGrassDensity = 1.0;
+    const float defaultGrassNear = 100;
+    const float defaultGrassFar = 200;
+    float displayGrassDensity = defaultGrassDensity;
+    float displayGrassNear = defaultGrassNear;
+    float displayGrassFar = defaultGrassFar;
+
+    Grass grassObj(computeHightMap, glm::uvec2(computeHMWidth,computeHMHeight), glm::vec2(gameSize,gameSize), defaultGrassDensity, defaultGrassNear, defaultGrassFar);
+
+    //set grass shader uniforms
+    grassShader->use();
+    grassShader->setFloat("heightScale", Max_Height);
+    grassShader->setFloat("worldSize", gameSize);
+    grassShader->setFloat("uTexelSize", 1.0/computeHMWidth);
+
     // create ocean
     // Settings for use in graphics window
     const unsigned int defaultOceanRes = 32;
@@ -310,7 +328,7 @@ int main()
     unsigned int oceanResWidth = defaultOceanRes;
     unsigned int oceanTessLevel = defaultOceanTess;
 
-    Ocean OceanObj(computeHightMap, glm::vec2(computeHMWidth,computeHMHeight), oceanResWidth, oceanResHeight);
+    Ocean oceanObj(computeHightMap, glm::vec2(computeHMWidth,computeHMHeight), oceanResWidth, oceanResHeight);
     // set Ocean Shader Uniforms
     oceanShader->use();
     oceanShader->setUInt("tessellationLevel",oceanTessLevel);
@@ -422,14 +440,20 @@ int main()
 
             //Draw Ocean
             if(!tempSetUpOceanVerts){
-                OceanObj.setUpVertices(YCorrectedOriginView, projection, camera.Position, 0);
+                oceanObj.setUpVertices(YCorrectedOriginView, projection, camera.Position, 0);
                 //tempSetUpOceanVerts = true;
             }
             oceanShader->use();
             oceanShader->setFloat("time", static_cast<float>(currentFrame));///TODO fix potential problems with lack of precision with floats
             glUniform3fv(glGetUniformLocation(oceanShader->ID, "playerPos"),1, glm::value_ptr(camera.Position));
             glUniform3fv(glGetUniformLocation(oceanShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
-            OceanObj.draw(*oceanShader, YCorrectedOriginView, projection);
+            oceanObj.draw(*oceanShader, YCorrectedOriginView, projection);
+
+            //Draw Grass
+            grassShader->use();
+            //grassShader->setFloat("time", static_cast<float>(currentFrame));///TODO fix potential problems with lack of precision with floats
+            glUniform3fv(glGetUniformLocation(oceanShader->ID, "playerPos"),1, glm::value_ptr(camera.Position));
+            grassObj.draw(*grassShader, view, projection);
 
 
 
@@ -515,6 +539,14 @@ int main()
                     oceanShader->setFloat("nearPlane", nearPlane);
                     oceanShader->setFloat("farPlane", farPlane);
                 }
+                if (ImGui::Button("Reload Grass Shader")){
+                    delete grassShader;
+                    grassShader = new Shader("shaders/grass_shader.vs", "shaders/grass_shader.fs", NULL, NULL);
+                    grassShader->use();
+                    grassShader->setFloat("heightScale", Max_Height);
+                    grassShader->setFloat("worldSize", gameSize);
+                    grassShader->setFloat("uTexelSize", 1.0/computeHMWidth);
+                }
                 if (ImGui::Button("Reload Compute Shader")){
                     delete imageGenShader;
                     imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
@@ -536,7 +568,7 @@ int main()
                 }
 
                 if(ImGui::Button("Print verts")){
-                    OceanObj.printLineVerts();
+                    oceanObj.printLineVerts();
                 }
                 ImGui::Checkbox("Metrics Window", &metricsWindowToggle);
                 ImGui::Checkbox("Demo Window", &demoWindowToggle);
@@ -628,18 +660,20 @@ int main()
                     static float terrainMaxDisplay = TerrainMaxTessDist;
                     if(ImGui::Button("Clear All to Current Value")){
                         //ocean Super Resolution
-                        OceanObj.getResolution(&oceanResWidth,&oceanResHeight);
+                        oceanObj.getResolution(&oceanResWidth,&oceanResHeight);
                         //Ocean Tessellation
                         oceanTessDisplay = oceanTessLevel;
                         //Terrain Tessellation
                         terrainMinDisplay = TerrainMinTessDist;
                         terrainMaxDisplay = TerrainMaxTessDist;
+                        //Grass
+                        grassObj.getSettings(&displayGrassDensity, &displayGrassNear, &displayGrassFar);
                     }
                     if(ImGui::Button("Reset All to Default")){
                         //ocean Super Resolution
                         oceanResWidth = defaultOceanRes;
                         oceanResHeight = defaultOceanRes;
-                        OceanObj.changeResolution(oceanResWidth,oceanResHeight);
+                        oceanObj.changeResolution(oceanResWidth,oceanResHeight);
                         //Ocean Tessellation
                         oceanTessLevel = defaultOceanTess;
                         oceanTessDisplay = oceanTessLevel;
@@ -653,6 +687,11 @@ int main()
                         tessShader->use();
                         tessShader->setFloat("minimumTessDist", TerrainMinTessDist);
                         tessShader->setFloat("maximumTessDist", TerrainMaxTessDist);
+                        //Grass
+                        displayGrassDensity = defaultGrassDensity;
+                        displayGrassFar = defaultGrassFar;
+                        displayGrassNear = defaultGrassNear;
+                        grassObj.changeSettings(displayGrassDensity, displayGrassNear, displayGrassFar);
 
                     }
 
@@ -671,7 +710,7 @@ int main()
                         ImGui::EndTooltip();
                     }
                     if(ImGui::Button("Apply##oceanSupRes")){
-                        OceanObj.changeResolution(oceanResWidth,oceanResHeight);
+                        oceanObj.changeResolution(oceanResWidth,oceanResHeight);
                     }
                     ImGui::SameLine();
                     ImGui::Dummy(ImVec2(5.0,0.0));
@@ -713,7 +752,7 @@ int main()
 
                     const float terrainTessLower = 0.0;
                     const float terrainTessUpper = farPlane;
-                    ImGui::Text("Terrain TessellationDistance:");
+                    ImGui::Text("Terrain Tessellation Distance:");
                     ImGui::SameLine();
                     ImGui::TextDisabled("(?)");
                     if (ImGui::IsItemHovered()){
@@ -747,6 +786,46 @@ int main()
                     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
                     ImGui::DragScalar("##terrainTessMzn", ImGuiDataType_Float, &terrainMaxDisplay, 1.0, &terrainMinDisplay, &terrainTessUpper, "%.0f", ImGuiSliderFlags_AlwaysClamp);
 
+
+                    const float grassLower = 0.0;
+                    const float grassUpper = farPlane;
+                    const float grassDensityLower = 0.1;
+                    const float grassDensityUpper = 2.0;
+
+                    ImGui::Text("Grass Render Distance:");
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("(?)");
+                    if (ImGui::IsItemHovered()){
+                        ImGui::BeginTooltip();
+                        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+                        ImGui::TextUnformatted(("How close to the player should the\n"
+                                                "High/Low poly resolution be set.\n"
+                                                "(Larger = more expensive)\n"
+                                                "Default: 0 -> " + std::to_string(static_cast<int>(defaultGrassNear)) +
+                                                " (Low Poly) -> " + std::to_string(static_cast<int>(defaultGrassFar)) ).c_str());
+                        ImGui::PopTextWrapPos();
+                        ImGui::EndTooltip();
+                    }
+                    if(ImGui::Button("Apply##GrassRenderDist")){
+                        grassObj.changeSettings(displayGrassDensity, displayGrassNear, displayGrassFar);
+                    }
+                    ImGui::SameLine();
+                    ImGui::Dummy(ImVec2(5.0,0.0));
+                    ImGui::SameLine();
+                    ImGui::Text("Near:");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
+                    ImGui::DragScalar("##GrassRenderDistNear", ImGuiDataType_Float, &displayGrassNear, 1.0f, &grassLower, &displayGrassFar, "%.0f", ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::SameLine();
+                    ImGui::Text("Far:");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
+                    ImGui::DragScalar("##GrassRenderDistFar", ImGuiDataType_Float, &displayGrassFar, 1.0f, &displayGrassNear, &grassUpper, "%.0f", ImGuiSliderFlags_AlwaysClamp);
+
+                    ImGui::Text("Average Speration in Meters:");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
+                    ImGui::DragScalar("##GrassDensity", ImGuiDataType_Float, &displayGrassDensity, 0.01f, &grassDensityLower, &grassDensityUpper, "%.02f", ImGuiSliderFlags_AlwaysClamp);
 
 
 
