@@ -28,6 +28,8 @@ class Grass
         void setUpBuffers(); // Create VAO/VBO and sending vertex data into different function
 
     protected:
+        glm::uvec3 pcg3d(glm::uvec3 v);
+
         std::vector<glm::vec2> nearOffsetVertices;
         std::vector<glm::vec3> model;
         float density;

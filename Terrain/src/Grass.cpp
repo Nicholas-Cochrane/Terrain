@@ -67,6 +67,7 @@ void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMat
     glBindTexture(GL_TEXTURE_2D, heightMap);
 
     shader.setMat4("pvMatrix", projectionMatrix * viewMatrix);
+    shader.setFloat("nearDist", nearLOD);
 
     glBindVertexArray(VAO);
     glDrawArraysInstanced(GL_TRIANGLES, 0, model.size() , nearOffsetVertices.size());
@@ -74,6 +75,16 @@ void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMat
     glBindVertexArray(0); // unbind
     glEnable(GL_CULL_FACE);
 }
+
+glm::uvec3 Grass::pcg3d(glm::uvec3 v)
+{
+    v = v * 1664525u + 1013904223u;
+	v.x += v.y*v.z; v.y += v.z*v.x; v.z += v.x*v.y;
+	v ^= v >> 16u;
+	v.x += v.y*v.z; v.y += v.z*v.x; v.z += v.x*v.y;
+    return v;
+}
+
 
 void Grass::setUpVertices()
 {
@@ -85,7 +96,10 @@ void Grass::setUpVertices()
     nearOffsetVertices.resize(static_cast<int>( (1.0/density)* std::pow(nearLOD*2 , 2)));
     for(float y = -nearLOD; y < nearLOD; y += density){
         for(float x = -nearLOD; x < nearLOD; x += density){
-            nearOffsetVertices.push_back(glm::vec2(x,y));
+            glm::uvec3 hashVec = pcg3d(glm::uvec3((unsigned int) (y*(1.0/density)), (unsigned int) (x*(1.0/density)), 7632978u));
+            float hashx = ((static_cast<float>(hashVec.x)/UINT_MAX) - 0.5)* 2;
+            float hashy = ((static_cast<float>(hashVec.y)/UINT_MAX) - 0.5) * 2;
+            nearOffsetVertices.push_back(glm::vec2(x + (hashx * density),y + (hashy * density)));
         }
     }
 }

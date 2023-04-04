@@ -141,6 +141,7 @@ int main()
         return -1;
     }
 
+    std::cout << "Compiled on C++:" << __cplusplus << std::endl;
     std::cout << glGetString(GL_VERSION) << std::endl << std::endl;
 
     // query Compute limitations
@@ -452,7 +453,7 @@ int main()
             //Draw Grass
             grassShader->use();
             //grassShader->setFloat("time", static_cast<float>(currentFrame));///TODO fix potential problems with lack of precision with floats
-            glUniform3fv(glGetUniformLocation(oceanShader->ID, "playerPos"),1, glm::value_ptr(camera.Position));
+            glUniform3fv(glGetUniformLocation(grassShader->ID, "playerPos"),1, glm::value_ptr(camera.Position));
             grassObj.draw(*grassShader, view, projection);
 
 
