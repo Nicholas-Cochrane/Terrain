@@ -306,7 +306,7 @@ int main()
     camera.passHeightMapData(heightMapCopyArray, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
 
     // create grass
-    const float defaultGrassDensity = 1.0;
+    const float defaultGrassDensity = 0.35;
     const float defaultGrassNear = 100;
     const float defaultGrassFar = 200;
     float displayGrassDensity = defaultGrassDensity;

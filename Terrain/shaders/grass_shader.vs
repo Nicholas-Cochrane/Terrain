@@ -38,6 +38,13 @@ void main()
 		modOffsetZ = modOffsetZ + nearDist*2;
 	}
 	vec2 combOffset = aOffset + vec2(modOffsetX,modOffsetZ);
+	vec2 fadeDist = combOffset - playerPos.xz;
+	float fadeStrength = max(abs(fadeDist.x), abs(fadeDist.y))/(nearDist);
+	fadeStrength *= distance(combOffset, playerPos.xz)/nearDist;
+	fadeStrength *= fadeStrength* fadeStrength * fadeStrength;
+	fadeStrength -= 0.15;
+	fadeStrength = max(0, fadeStrength);
+	//fpos = vec3(fadeStrength,0,1);
 	vec2 texCoord = ((worldSize/2) + vec2(combOffset.x, -combOffset.y))/worldSize;
 	float height = texture(heightMap, texCoord).r * heightScale;
 	float left  = texture(heightMap, texCoord + vec2(-uTexelSize, 0.0)).r * heightScale * 2.0 - 1.0;
@@ -52,5 +59,5 @@ void main()
 	}
 	
 	vec3 rotatedPos = rotateAroundY(apos, hash(aOffset).x);
-    gl_Position = pvMatrix * vec4(rotatedPos + vec3(combOffset.x, height, combOffset.y), 1.0);
+    gl_Position = pvMatrix * vec4(rotatedPos + vec3(combOffset.x, height-fadeStrength, combOffset.y), 1.0);
 }

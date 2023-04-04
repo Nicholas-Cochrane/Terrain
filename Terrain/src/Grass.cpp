@@ -102,6 +102,7 @@ void Grass::setUpVertices()
             nearOffsetVertices.push_back(glm::vec2(x + (hashx * density),y + (hashy * density)));
         }
     }
+    std::cout << nearOffsetVertices.size() <<std::endl;
 }
 
 void Grass::setUpBuffers()
