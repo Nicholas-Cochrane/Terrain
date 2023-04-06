@@ -11,7 +11,8 @@ uniform float worldSize;
 uniform float uTexelSize;
 uniform vec3 playerPos; 
 uniform mat4 pvMatrix;
-uniform float nearDist;
+uniform float farDist;
+uniform bool LODdist;
 
 vec2 hash(vec2 p ){ 
 	p = vec2( dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)) );
@@ -28,19 +29,32 @@ vec3 rotateAroundY(vec3 vertex, float angle){
 
 void main()
 {
-	fpos = vec3(aOffset, 1);
-	float modOffsetX = floor((playerPos.x)/(nearDist*2))*(nearDist*2);
-	if(abs((modOffsetX + aOffset.x)-playerPos.x) > nearDist){
-		modOffsetX = modOffsetX + nearDist*2;
+	float corner = 0;
+	if (aOffset.x < -farDist+1.0 && aOffset.y < -farDist+1.0){
+		corner = 1;
 	}
-	float modOffsetZ = floor((playerPos.z)/(nearDist*2))*(nearDist*2);
-	if(abs((modOffsetZ + aOffset.y)-playerPos.z) > nearDist){
-		modOffsetZ = modOffsetZ + nearDist*2;
+	fpos = vec3(aOffset.x,corner,aOffset.y);
+	if(LODdist){
+		//fpos = vec3(0,1,0);
 	}
+	if(gl_InstanceID < 2u){
+		fpos = vec3(1,1,1);
+	}
+	
+	//wrap grass positions around
+	float modOffsetX = floor((playerPos.x)/(farDist*2))*(farDist*2);
+	if(abs((modOffsetX + aOffset.x)-playerPos.x) > farDist){
+		modOffsetX = modOffsetX + farDist*2;
+	}
+	float modOffsetZ = floor((playerPos.z)/(farDist*2))*(farDist*2);
+	if(abs((modOffsetZ + aOffset.y)-playerPos.z) > farDist){
+		modOffsetZ = modOffsetZ + farDist*2;
+	}
+	
 	vec2 combOffset = aOffset + vec2(modOffsetX,modOffsetZ);
 	vec2 fadeDist = combOffset - playerPos.xz;
-	float fadeStrength = max(abs(fadeDist.x), abs(fadeDist.y))/(nearDist);
-	fadeStrength *= distance(combOffset, playerPos.xz)/nearDist;
+	float fadeStrength = max(abs(fadeDist.x), abs(fadeDist.y))/(farDist);
+	fadeStrength *= distance(combOffset, playerPos.xz)/farDist;
 	fadeStrength *= fadeStrength* fadeStrength * fadeStrength;
 	fadeStrength -= 0.15;
 	fadeStrength = max(0, fadeStrength);
