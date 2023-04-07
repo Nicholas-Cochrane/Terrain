@@ -6,6 +6,7 @@ layout (location = 1) in vec2 aOffset;
 out vec3 fpos;
 
 uniform sampler2D heightMap;
+uniform sampler2D windMap;
 uniform float heightScale;
 uniform float worldSize;
 uniform float uTexelSize;
@@ -13,6 +14,10 @@ uniform vec3 playerPos;
 uniform mat4 pvMatrix;
 uniform float farDist;
 uniform bool LODdist;
+uniform float time;
+uniform float windAngle;
+
+#define PI 3.1415926535897932384626433832795
 
 vec2 hash(vec2 p ){ 
 	p = vec2( dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)) );
@@ -29,18 +34,6 @@ vec3 rotateAroundY(vec3 vertex, float angle){
 
 void main()
 {
-	float corner = 0;
-	if (aOffset.x < -farDist+1.0 && aOffset.y < -farDist+1.0){
-		corner = 1;
-	}
-	fpos = vec3(aOffset.x,corner,aOffset.y);
-	if(LODdist){
-		//fpos = vec3(0,1,0);
-	}
-	if(gl_InstanceID < 2u){
-		fpos = vec3(1,1,1);
-	}
-	
 	//wrap grass positions around
 	float modOffsetX = floor((playerPos.x)/(farDist*2))*(farDist*2);
 	if(abs((modOffsetX + aOffset.x)-playerPos.x) > farDist){
@@ -71,7 +64,27 @@ void main()
 		gl_Position = vec4(-2,-2,-2,1);// do not render
 		return;
 	}
+	float windRadians = (windAngle)*(PI/180);
+	vec2 windDirection = vec2(sin(windRadians), -cos(windRadians));
+	vec2 offsetHash = hash(aOffset);
+	float windSpeed = 2;
 	
-	vec3 rotatedPos = rotateAroundY(apos, hash(aOffset).x);
+	float windStrength = texture(windMap, mat2(cos(windRadians), -sin(windRadians), sin(windRadians), cos(windRadians))*(windDirection*vec2(time,time)*0.05 + mod(offsetHash, 0.04)+ (worldSize/200.0)*texCoord)).r;
+	
+	float corner = 0;
+	if (aOffset.x < -farDist+1.0 && aOffset.y < -farDist+1.0){
+		corner = 1;
+	}
+	fpos = vec3(windStrength,corner,aOffset.y);
+	if(LODdist){
+		//fpos = vec3(0,1,0);
+	}
+	if(gl_InstanceID < 2u){
+		fpos = vec3(1,1,1);
+	}
+	
+	vec3 rotatedPos = rotateAroundY(apos, offsetHash.x);
+	rotatedPos.z += pow(apos.y,1.5) * windSpeed *(pow(windStrength,1.3)-0.2)*0.4* windDirection.y;
+	rotatedPos.x += pow(apos.y,1.5) * windSpeed * (pow(windStrength,1.3)-0.2)*0.4* -windDirection.x;
     gl_Position = pvMatrix * vec4(rotatedPos + vec3(combOffset.x, height-fadeStrength, combOffset.y), 1.0);
 }

@@ -1,6 +1,6 @@
 #include "Grass.h"
 
-Grass::Grass(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, glm::vec2 worldSizeInput , float newDensity, float newNearLOD, float newFarLOD)
+Grass::Grass(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, unsigned int windMapInput, glm::vec2 worldSizeInput , float newDensity, float newNearLOD, float newFarLOD)
 {
     //ctor
     density = newDensity;
@@ -9,7 +9,9 @@ Grass::Grass(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, glm:
 
     heightMap = heightMapInput;
     heightMapUVsize = heightMapUVsizeInput;
-    worldSize = worldSizeInput; ///TODO remove if not needed
+    worldSize = worldSizeInput;
+    windMap = windMapInput;
+
 
     farModel = {glm::vec3(-0.08, 0, 0),
                  glm::vec3(0.08, 0, 0),
@@ -103,9 +105,13 @@ void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMat
     shader.use();
 
     shader.setInt("heightMap", 0); // set shader uniform to sampler
+    shader.setInt("windMap", 1);
 
     glActiveTexture(GL_TEXTURE0); // set sampler to texture
     glBindTexture(GL_TEXTURE_2D, heightMap);
+    glActiveTexture(GL_TEXTURE1); // set sampler to texture
+    glBindTexture(GL_TEXTURE_2D, windMap);
+
 
     int temp = 0;
 
@@ -144,7 +150,7 @@ void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMat
         }
 
     }
-    std::cout << temp << std::endl;
+    //std::cout << temp << std::endl;
 
     glBindVertexArray(0); // unbind
     glEnable(GL_CULL_FACE);

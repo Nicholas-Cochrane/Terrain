@@ -177,9 +177,11 @@ int main()
     Shader* screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs", NULL, NULL);
     Shader* oceanShader = new Shader("shaders/ocean_shader.vs", "shaders/ocean_shader.fs", "shaders/ocean_shader.tcs", "shaders/ocean_shader.tes");
     Shader* grassShader = new Shader("shaders/grass_shader.vs", "shaders/grass_shader.fs", NULL, NULL);
-    glCheckError();
-    ComputeShader* imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
 
+    ComputeShader* imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
+    ComputeShader* windGenShader = new ComputeShader("compute_shaders/wind_gen.glsl");
+
+    glCheckError();
     //SET DRAW MODE TO WIREFRAME
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glPointSize(10.0f);
@@ -206,7 +208,8 @@ int main()
     };
 
     //weather/lighting shader variables
-    glm::vec3 sunDirection = glm::normalize(glm::vec3(0.0f, 0.2f, -0.5f));
+    glm::vec3 sunDirection = glm::normalize(glm::vec3(0.0f, 0.5f, 0.2f));
+    float windAngle = 0;
 
     //Set up screenQuad (sky) VBO
     unsigned int screenQuadVBO, screenQuadVAO;
@@ -253,7 +256,7 @@ int main()
 	//compute height map
 	int seed = rand();
 	seed = rand(); // rand uses UTC time for its seed so it must be called twice
-	seed = 5003;// TEMP DELETE  ME
+	seed = 5003;/// TODO DELETE  ME
 	std::cout << "Seed:" << seed << std::endl;
 	imageGenShader->use();
 	imageGenShader->setInt("seed", seed);
@@ -263,6 +266,35 @@ int main()
     // make sure writing to image has finished before read
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     //glGenerateMipmap(GL_TEXTURE_2D);
+    glCheckError();
+    //Generate wind map
+    unsigned int windMap;
+    unsigned int windMapRes= 256;
+
+	glGenTextures(1, &windMap);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, windMap);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glCheckError();
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, windMapRes, windMapRes, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+    glCheckError();
+	glBindImageTexture(1, windMap, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R8);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, windMap);
+    glCheckError();
+	//compute wind map
+	windGenShader->use();
+	windGenShader->setInt("seed", seed);
+	windGenShader->setInt("imgOutput", 1);
+	glUniform2uiv(glGetUniformLocation(windGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(windMapRes,windMapRes)));
+    glDispatchCompute((unsigned int)windMapRes, (unsigned int)windMapRes, 1);
+    // make sure writing to image has finished before read
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    glCheckError();
 
 
     //Object Creation
@@ -313,7 +345,7 @@ int main()
     float displayGrassNear = defaultGrassNear;
     float displayGrassFar = defaultGrassFar;
 
-    Grass grassObj(computeHightMap, glm::uvec2(computeHMWidth,computeHMHeight), glm::vec2(gameSize,gameSize), defaultGrassDensity, defaultGrassNear, defaultGrassFar);
+    Grass grassObj(computeHightMap, glm::uvec2(computeHMWidth,computeHMHeight), windMap, glm::vec2(gameSize,gameSize), defaultGrassDensity, defaultGrassNear, defaultGrassFar);
 
     //set grass shader uniforms
     grassShader->use();
@@ -451,9 +483,10 @@ int main()
 
             //Draw Grass
             grassShader->use();
-            //grassShader->setFloat("time", static_cast<float>(currentFrame));///TODO fix potential problems with lack of precision with floats
+            grassShader->setFloat("time", static_cast<float>(currentFrame));///TODO fix potential problems with lack of precision with floats
+            grassShader->setFloat("windAngle", windAngle);
             grassObj.draw(*grassShader, view, projection, camera);
-            glCheckError();
+            //glCheckError();
 
 
 
@@ -511,6 +544,11 @@ int main()
             static bool weatherWindowToggle = true;
             static bool graphicsWindowToggle = true;
 
+            ImGui::Begin("Test Image Window");
+                ImGui::Image((void*)(intptr_t)computeHightMap, ImVec2(400, 400), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
+                ImGui::Image((void*)(intptr_t)windMap, ImVec2(400, 400), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
+            ImGui::End();
+
             ImGui::Begin("Debug", NULL, ImGuiWindowFlags_NoScrollbar);
                 if (ImGui::Button("Reload Tess Shader")){
                     delete tessShader;
@@ -550,6 +588,7 @@ int main()
                 if (ImGui::Button("Reload Compute Shader")){
                     delete imageGenShader;
                     imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
+
                     //Set uniforms
                     imageGenShader->use();
                     imageGenShader->setInt("seed", seed);
@@ -557,6 +596,21 @@ int main()
                     glDispatchCompute((unsigned int)computeHMWidth, (unsigned int)computeHMHeight, 1);
 
                     heightMapCopied = NOT_STARTED; //Recopy height map to RAM
+
+                    // make sure writing to image has finished before read
+                    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+                }
+
+                if (ImGui::Button("Reload Wind Compute Shader")){
+                    delete windGenShader;
+                    windGenShader = new ComputeShader("compute_shaders/wind_gen.glsl");
+
+                    //Set uniforms
+                    windGenShader->use();
+                    windGenShader->setInt("seed", seed);
+                    windGenShader->setInt("imgOutput", 1);
+                    glUniform2uiv(glGetUniformLocation(windGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(windMapRes,windMapRes)));
+                    glDispatchCompute((unsigned int)windMapRes, (unsigned int)windMapRes, 1);
 
                     // make sure writing to image has finished before read
                     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -646,6 +700,24 @@ int main()
 
                     sunDirection = glm::vec3(std::sin(zenith) * std::sin(azimuth360), std::cos(zenith) , std::sin(zenith) *  -std::cos(azimuth360)); //todo fix sun dipping south at noon
                     sunDirection = glm::normalize(sunDirection);
+
+                    //windDirection
+                    ImGui::SliderFloat("Wind Direction:", &windAngle, 0, 360, "%.5f");
+                    float cardinalAngle;
+                    std::modf(windAngle, &cardinalAngle);
+                    cardinalAngle = static_cast<int>(cardinalAngle)%360;
+                    if(cardinalAngle < 0 ) cardinalAngle += 360;
+                    if(cardinalAngle < 45 || cardinalAngle > 315){ // North is 0 degrees
+                        textString = "(North)";
+                    }else if(cardinalAngle < 135){ //West is 90 degrees
+                        textString = "(West)";
+                    }else if(cardinalAngle < 225){ // Sound is 180 degrees
+                        textString = "South)";
+                    } else{ // E is 270 degrees
+                        textString ="(East)";
+                    }
+
+                    ImGui::Text(textString.c_str());
 
                     tessShader->use();
                     tessShader->setFloat("latitude", latitude);
@@ -917,7 +989,7 @@ int main()
                 callback_Args_Ptr = &callback_Args; // set struct pointer to point to a struct
                 //set up arguments to be passed to callback function
                 callback_Args.shaderPtr = mapShader;
-                callback_Args.uTexelSize = 1.0/computeHMWidth;//1.0/computeHMWidth;
+                callback_Args.uTexelSize = 1.0/computeHMWidth;
                 callback_Args.heightScale = Max_Height;
                 callback_Args.channels = glm::vec4(redChannel, greenChannel, blueChannel, alphaChannel);
                 callback_Args.alphaOnly = alphaOnly;
