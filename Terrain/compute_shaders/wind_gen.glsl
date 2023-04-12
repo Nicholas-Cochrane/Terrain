@@ -80,8 +80,10 @@ void main() {
 	vec2 uv = vec2(float(texelCoord.x)/texRes.x,float(texelCoord.y)/texRes.y);
 	vec2 flippeduv = (-uv+1.0);
 	
-	value.r = ((repeatingOctPNoiseLoop(uv.yx,0.5, 1)*PI)+1.0)/2; // lerp between noise and noise from 0 to -1 on a ln curve
-	value.r = (sin((uv.y * PI * 10) + (repeatingOctPNoiseLoop(uv,0.5, 3)*10))+ 1.0)/2;
-
+	//value.r = ((repeatingOctPNoiseLoop(uv.yx,0.5, 1)*PI)+1.0)/2;
+	float secondaryScale = 4;
+	value.r = (sin((uv.y * PI * 8) + (repeatingOctPNoiseLoop(uv,0.5, 3)*8))+ 1)/2; // gusts
+	value.r = value.r *(sin((uv.y * PI * 4 + (PI/4)) + (repeatingOctPNoiseLoop(uv,0.5, 3)*8))+ 1)/2; //decrease every other gus
+	value.r = (value.r*0.75 + 0.25) * (((sin((uv.y * PI * 50) + (repeatingOctPNoiseLoop(uv,1, 3)*10))+ 1.0)/(2*secondaryScale)) + (secondaryScale-1)/secondaryScale); // add small ossilations
     imageStore(imgOutput, texelCoord, value);
 }
