@@ -352,6 +352,7 @@ int main()
     grassShader->setFloat("heightScale", Max_Height);
     grassShader->setFloat("worldSize", gameSize);
     grassShader->setFloat("uTexelSize", 1.0/computeHMWidth);
+    glUniform3fv(glGetUniformLocation(grassShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
     // create ocean
     // Settings for use in graphics window
     const unsigned int defaultOceanRes = 32;
@@ -485,6 +486,8 @@ int main()
             grassShader->use();
             grassShader->setFloat("time", static_cast<float>(currentFrame));///TODO fix potential problems with lack of precision with floats
             grassShader->setFloat("windAngle", windAngle);
+            glUniform3fv(glGetUniformLocation(grassShader->ID, "playerPos"),1, glm::value_ptr(camera.Position));
+            glUniform3fv(glGetUniformLocation(grassShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
             grassObj.draw(*grassShader, view, projection, camera);
             //glCheckError();
 
@@ -584,6 +587,7 @@ int main()
                     grassShader->setFloat("heightScale", Max_Height);
                     grassShader->setFloat("worldSize", gameSize);
                     grassShader->setFloat("uTexelSize", 1.0/computeHMWidth);
+                    glUniform3fv(glGetUniformLocation(grassShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
                 }
                 if (ImGui::Button("Reload Compute Shader")){
                     delete imageGenShader;
