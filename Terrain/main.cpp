@@ -369,8 +369,8 @@ int main()
 
     // create grass
     const float defaultGrassDensity = 0.35;
-    const float defaultGrassNear = 100;
-    const float defaultGrassFar = 200;
+    const float defaultGrassNear = 20;
+    const float defaultGrassFar = 240;
     float displayGrassDensity = defaultGrassDensity;
     float displayGrassNear = defaultGrassNear;
     float displayGrassFar = defaultGrassFar;
@@ -531,7 +531,7 @@ int main()
                 ImGui::Text(positionStr.c_str());
                 positionStr = "Y:" + std::to_string(camera.Position.y);
                 ImGui::Text(positionStr.c_str());
-                positionStr = "Y ground:" + std::to_string(camera.Position.y -1.7f);
+                positionStr = "Y Feet:" + std::to_string(camera.Position.y -1.7f);
                 ImGui::Text(positionStr.c_str());
                 positionStr = "Z:" + std::to_string(camera.Position.z);
                 ImGui::Text(positionStr.c_str());
@@ -565,7 +565,9 @@ int main()
                 ImGui::Text(positionStr.c_str());
 
 
-                positionStr = "Elevation:" + std::to_string(camera.Elevation);
+                positionStr = "Elevation of Ground:" + std::to_string(camera.Elevation);
+                ImGui::Text(positionStr.c_str());
+                positionStr = "Dist to Ground:" + std::to_string(camera.Position.y - camera.Elevation);
                 ImGui::Text(positionStr.c_str());
                 ImGui::Checkbox("noClip", &camera.fly);
 

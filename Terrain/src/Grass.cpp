@@ -14,10 +14,25 @@ Grass::Grass(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, unsi
     grassHeightMap = grassHeightMapInput;
 
 
-    farModel = {glm::vec3(-0.08, 0, 0),
+    /*farModel = {glm::vec3(-0.08, 0, 0),
                  glm::vec3(0.08, 0, 0),
                  glm::vec3(0, 1.0, 0)
+                };*/
+
+
+    farModel = {glm::vec3(-0.05, 0, 0),
+                 glm::vec3(0.05, 0, 0),
+                 glm::vec3(-0.05, 0.6, 0),
+                 glm::vec3(-0.05, 0.6, 0),
+                 glm::vec3(0.05, 0, 0),
+                 glm::vec3(0.05, 0.6, 0),
+
+                 glm::vec3(-0.05, 0.6, 0),
+                 glm::vec3(0.05, 0.6, 0),
+                 glm::vec3(0, 1.0, 0)
+
                 };
+
     nearModel = {glm::vec3(-0.05, 0, 0),
                  glm::vec3(0.05, 0, 0),
                  glm::vec3(-0.06, 0.3, 0),
