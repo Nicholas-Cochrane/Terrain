@@ -18,7 +18,7 @@
 class Grass
 {
     public:
-        Grass(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, unsigned int windMapInput, glm::vec2 worldSizeInput , float newDensity, float newNearLOD, float newFarLOD);
+        Grass(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, unsigned int windMapInput, unsigned int grassHeightMapInput, glm::vec2 worldSizeInput , float newDensity, float newNearLOD, float newFarLOD);
         virtual ~Grass();
         void changeSettings(float newDensity, float newNearLOD, float newFarLOD);
         void getSettings (float* outDensity, float* outNearLOD, float* outFarLOD);
@@ -52,6 +52,7 @@ class Grass
         glm::uvec2 heightMapUVsize; // width and height of height map /// TODO delete size vars when globally available
         glm::vec2 worldSize;// width and height of heightmap in world space
         unsigned int windMap;
+        unsigned int grassHeightMap;
 
 };
 

@@ -7,9 +7,11 @@ out vec3 fpos;
 out vec4 offsetPos;
 out vec3 vertNormal;
 out vec3 gNormal;
+out float grassHeight;
 
 uniform sampler2D heightMap;
 uniform sampler2D windMap;
+uniform sampler2D grassHeightMap;
 uniform float heightScale;
 uniform float worldSize;
 uniform float uTexelSize;
@@ -37,7 +39,6 @@ vec3 rotateAroundY(vec3 vertex, float angle){
 
 void main()
 {
-	fpos = apos;
 	vec3 startingNorm = normalize(vec3(0,0,1));
 
 	//wrap grass positions around
@@ -76,8 +77,16 @@ void main()
 	vec2 offsetHash = hash(aOffset);
 	float windSpeed = 2;
 	float scrollSpeed = 0.03;
+	float windTextureSize = 200.0; //number of units 1 tile of texture covers
+	float grassHeightTextureSize = 200.0; //number of units 1 tile of texture covers
 	
-	float windStrength = texture(windMap, mat2(cos(windRadians), -sin(windRadians), sin(windRadians), cos(windRadians))*(windDirection*vec2(time,time)*scrollSpeed + mod(offsetHash, 0.03)+ (worldSize/200.0)*texCoord)).r;
+	float windStrength = texture(windMap, mat2(cos(windRadians), -sin(windRadians), sin(windRadians), cos(windRadians))*(windDirection*vec2(time,time)*scrollSpeed + mod(offsetHash, 0.03)+ (worldSize/windTextureSize)*texCoord)).r;
+	//vary height by perlin noise map
+	vec3 heightAdjPos = apos;
+	grassHeight = texture(grassHeightMap, (worldSize/grassHeightTextureSize)*texCoord).r;
+	heightAdjPos.y *= grassHeight*1.0 + 0.3;
+	heightAdjPos.xz *= sqrt(clamp(grassHeight+0.4,0,1)); // make shorter grass non linearly less wide
+	fpos = heightAdjPos;
 	
 	/*
 	float corner = 0;
@@ -91,9 +100,9 @@ void main()
 		fpos = vec3(1,1,1); 
 	}*/
 	
-	float heightPower = pow(apos.y,1.5);
+	float heightPower = pow(heightAdjPos.y,1.5);
 	
-	vec3 rotatedPos = rotateAroundY(apos, offsetHash.x);
+	vec3 rotatedPos = rotateAroundY(heightAdjPos, offsetHash.x);
 	vertNormal = rotateAroundY(startingNorm,offsetHash.x);              //-0.1                       /0.15
 	float zWindOffset = (heightPower * windSpeed *(pow(windStrength,1.3)-0.1)*0.4* windDirection.y) + 0.15 * heightPower * windDirection.y;
 	float xwindOffset = (heightPower * windSpeed * (pow(windStrength,1.3)-0.1)*0.4* -windDirection.x) + 0.15 * heightPower * -windDirection.x;

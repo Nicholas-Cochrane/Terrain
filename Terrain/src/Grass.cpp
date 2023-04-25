@@ -1,6 +1,6 @@
 #include "Grass.h"
 
-Grass::Grass(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, unsigned int windMapInput, glm::vec2 worldSizeInput , float newDensity, float newNearLOD, float newFarLOD)
+Grass::Grass(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, unsigned int windMapInput, unsigned int grassHeightMapInput,  glm::vec2 worldSizeInput, float newDensity, float newNearLOD, float newFarLOD)
 {
     //ctor
     density = newDensity;
@@ -11,6 +11,7 @@ Grass::Grass(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, unsi
     heightMapUVsize = heightMapUVsizeInput;
     worldSize = worldSizeInput;
     windMap = windMapInput;
+    grassHeightMap = grassHeightMapInput;
 
 
     farModel = {glm::vec3(-0.08, 0, 0),
@@ -106,11 +107,14 @@ void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMat
 
     shader.setInt("heightMap", 0); // set shader uniform to sampler
     shader.setInt("windMap", 1);
+    shader.setInt("grassHeightMap", 2);
 
     glActiveTexture(GL_TEXTURE0); // set sampler to texture
     glBindTexture(GL_TEXTURE_2D, heightMap);
     glActiveTexture(GL_TEXTURE1); // set sampler to texture
     glBindTexture(GL_TEXTURE_2D, windMap);
+    glActiveTexture(GL_TEXTURE2); // set sampler to texture
+    glBindTexture(GL_TEXTURE_2D, grassHeightMap);
 
 
     int temp = 0;

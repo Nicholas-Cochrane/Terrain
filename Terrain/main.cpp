@@ -180,6 +180,7 @@ int main()
 
     ComputeShader* imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
     ComputeShader* windGenShader = new ComputeShader("compute_shaders/wind_gen.glsl");
+    ComputeShader* grassHeightGenShader = new ComputeShader("compute_shaders/grass_height_gen.glsl");
 
     glCheckError();
     //SET DRAW MODE TO WIREFRAME
@@ -296,6 +297,35 @@ int main()
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     glCheckError();
 
+    //Generate grass height map
+    unsigned int grassHeightMap;
+    unsigned int grassHeightMapRes= 256;
+
+	glGenTextures(1, &grassHeightMap);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, grassHeightMap);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glCheckError();
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, grassHeightMapRes, grassHeightMapRes, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+    glCheckError();
+	glBindImageTexture(2, grassHeightMap, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R8);
+
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, grassHeightMap);
+    glCheckError();
+	//compute wind map
+	grassHeightGenShader->use();
+	grassHeightGenShader->setInt("seed", seed);
+	grassHeightGenShader->setInt("imgOutput", 2);
+	glUniform2uiv(glGetUniformLocation(grassHeightGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(grassHeightMapRes,grassHeightMapRes)));
+    glDispatchCompute((unsigned int)grassHeightMapRes, (unsigned int)grassHeightMapRes, 1);
+    // make sure writing to image has finished before read
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    glCheckError();
+
 
     //Object Creation
     //----------------
@@ -345,7 +375,7 @@ int main()
     float displayGrassNear = defaultGrassNear;
     float displayGrassFar = defaultGrassFar;
 
-    Grass grassObj(computeHightMap, glm::uvec2(computeHMWidth,computeHMHeight), windMap, glm::vec2(gameSize,gameSize), defaultGrassDensity, defaultGrassNear, defaultGrassFar);
+    Grass grassObj(computeHightMap, glm::uvec2(computeHMWidth,computeHMHeight), windMap, grassHeightMap, glm::vec2(gameSize,gameSize), defaultGrassDensity, defaultGrassNear, defaultGrassFar);
 
     //set grass shader uniforms
     grassShader->use();
@@ -550,6 +580,7 @@ int main()
             ImGui::Begin("Test Image Window");
                 ImGui::Image((void*)(intptr_t)computeHightMap, ImVec2(400, 400), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
                 ImGui::Image((void*)(intptr_t)windMap, ImVec2(400, 400), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
+                ImGui::Image((void*)(intptr_t)grassHeightMap, ImVec2(400, 400), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
             ImGui::End();
 
             ImGui::Begin("Debug", NULL, ImGuiWindowFlags_NoScrollbar);
@@ -615,6 +646,21 @@ int main()
                     windGenShader->setInt("imgOutput", 1);
                     glUniform2uiv(glGetUniformLocation(windGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(windMapRes,windMapRes)));
                     glDispatchCompute((unsigned int)windMapRes, (unsigned int)windMapRes, 1);
+
+                    // make sure writing to image has finished before read
+                    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+                }
+
+                if (ImGui::Button("Reload Grass Height Compute Shader")){
+                    delete grassHeightGenShader;
+                    grassHeightGenShader = new ComputeShader("compute_shaders/grass_height_gen.glsl");
+
+                    //Set uniforms
+                    grassHeightGenShader->use();
+                    grassHeightGenShader->setInt("seed", seed);
+                    grassHeightGenShader->setInt("imgOutput", 2);
+                    glUniform2uiv(glGetUniformLocation(grassHeightGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(grassHeightMapRes,grassHeightMapRes)));
+                    glDispatchCompute((unsigned int)grassHeightMapRes, (unsigned int)grassHeightMapRes, 1);
 
                     // make sure writing to image has finished before read
                     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
