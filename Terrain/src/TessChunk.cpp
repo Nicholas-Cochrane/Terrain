@@ -34,7 +34,7 @@ TessChunk::~TessChunk()
     glDeleteTextures(1, &texture);
 }
 
-void TessChunk::draw(Shader &shader, glm::mat4 &viewMatrix, glm::mat4 &projectionMatrix, glm::mat4 &projectionMatrix2)
+void TessChunk::prepShader(Shader& shader)
 {
     shader.use();
 
@@ -42,15 +42,18 @@ void TessChunk::draw(Shader &shader, glm::mat4 &viewMatrix, glm::mat4 &projectio
 
     glActiveTexture(GL_TEXTURE0); // set sampler to texture
     glBindTexture(GL_TEXTURE_2D, heightMap);
+}
+
+
+void TessChunk::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix, glm::mat4& projectionMatrix2)
+{
 
     glm::mat4 modelMatrix = glm::mat4(1.0f);
     modelMatrix = glm::translate(modelMatrix, position);
     shader.setMat4("modelMatrix", modelMatrix);
     shader.setMat4("mpvMatrix", projectionMatrix * viewMatrix * modelMatrix );
-    shader.setMat4("mpvMatrix2", projectionMatrix2 * viewMatrix * modelMatrix);
+    //shader.setMat4("mpvMatrix2", projectionMatrix2 * viewMatrix * modelMatrix);
     shader.setMat4("mvMatrix", viewMatrix * modelMatrix);
-
-    //TODO Stop doing the above all EVERY TIME 2.3% of gpu usage
 
     glBindVertexArray(VAO);
     glDrawArrays(GL_PATCHES, 0, 4*patchesPerEdge*patchesPerEdge); //send verts as patch to Tessellation shader

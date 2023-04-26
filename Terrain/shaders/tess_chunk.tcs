@@ -1,6 +1,23 @@
 //Tessellation Control Shader
 // AKA Hull Shader in DirectX
-#version 410 core
+#version 420 core
+
+layout (std140, binding = 0) uniform lowUpdateShared
+{
+	float heightScale; // height of 1.0 on height map (aka heightest possible point on map)
+	float worldSize; // size of map in units/meters
+	float uTexelSize; // texel size of hieghtmap or 1.0/(height map resolution)
+	float nearPlane;
+	float farPlane;
+};
+
+layout (std140, binding = 1) uniform freqUpdateShared
+{
+	float time;         //0
+	float windAngle;    //4
+	vec4 sunDirection;  //16
+	vec4 playerPos;     //32
+};
 
 layout(vertices=4) out;
 
@@ -10,9 +27,6 @@ uniform mat4 mvMatrix;          // model view matrix
 uniform mat4 mpvMatrix;         // model projection view Matrix
 uniform mat4 mpvMatrix2;        // Alt MPV for testing
 uniform mat4 modelMatrix;       // model matrix to move points from movdel space to world space
-
-uniform vec4 camPos;            // Camera coordinates
-uniform float heightScale;    	// (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
 
 uniform float minimumTessDist;
 uniform float maximumTessDist; 
@@ -40,7 +54,7 @@ void main()
 		vec4 point11 = (gl_in[3].gl_Position + vec4(0.0f, texture(heightMap, TextureCoord[3]).r * heightScale, 0.0f, 0.0f));
 			
 		// mid point of patch to camera distance
-		float avgDist = distance(camPos, modelMatrix * ((point00+point01+point10+point11)/4.0f));
+		float avgDist = distance(playerPos, modelMatrix * ((point00+point01+point10+point11)/4.0f));
 		
 		const int MIN_TESS_LEVEL = 1;
 		const int MAX_TESS_LEVEL = 64;
@@ -95,10 +109,10 @@ void main()
 			float distance11 = clamp((abs(eyeSpacePos11.z)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.0, 1.0);*/
 			
 			// power use to make fall of of tessellation not liner but exponential
-			float distance00 = clamp(pow((distance(camPos, modelMatrix *point00)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.4f), 0.0, 1.0);
-			float distance01 = clamp(pow((distance(camPos, modelMatrix *point01)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.4f), 0.0, 1.0);
-			float distance10 = clamp(pow((distance(camPos, modelMatrix *point10)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.4f), 0.0, 1.0);
-			float distance11 = clamp(pow((distance(camPos, modelMatrix *point11)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.4f), 0.0, 1.0);
+			float distance00 = clamp(pow((distance(playerPos, modelMatrix *point00)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.4f), 0.0, 1.0);
+			float distance01 = clamp(pow((distance(playerPos, modelMatrix *point01)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.4f), 0.0, 1.0);
+			float distance10 = clamp(pow((distance(playerPos, modelMatrix *point10)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.4f), 0.0, 1.0);
+			float distance11 = clamp(pow((distance(playerPos, modelMatrix *point11)-minimumTessDist) / (maximumTessDist-minimumTessDist), 0.4f), 0.0, 1.0);
 
 			// ----------------------------------------------------------------------
 			// Step 4: interpolate edge tessellation level based on closer vertex

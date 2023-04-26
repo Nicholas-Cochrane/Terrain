@@ -1,6 +1,6 @@
 //Tessellation Control Shader
 // AKA Hull Shader in DirectX
-#version 410 core
+#version 420 core
 
 layout(vertices=4) out;
 

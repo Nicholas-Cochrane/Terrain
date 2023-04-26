@@ -1,11 +1,19 @@
-#version 330 core
+#version 420 core
+
+layout (std140, binding = 1) uniform freqUpdateShared
+{
+	float time;         //0
+	float windAngle;    //4
+	vec4 sunDirection;  //16
+	vec4 playerPos;     //32
+};
+
 out vec4 FragColor;
 
 uniform mat4 persMatrix;
 uniform mat4 invPersMatrix;
 uniform vec4 viewport;
 uniform vec2 depthrange;
-uniform vec3 sunDirection;
 uniform float horizonAngle;
 
 vec4 CalcEyeFromWindow(in vec3 windowSpace)
@@ -29,7 +37,7 @@ void main()
 	vec4 color = vec4(1,0,1,1);
 	color = vec4(0.3f, 0.4f, 0.5f, 1.0f);
 	//TODO optomize
-	if(dot(normalize(rayDir.xyz), sunDirection) > 0.999){
+	if(dot(normalize(rayDir.xyz), sunDirection.xyz) > 0.999){
 		color = vec4(1,1,1,1);
 	
 	}else if(acos(dot(normalize(rayDir.xyz),vec3(0,-1,0))) < min(3.14/2-horizonAngle, 3.14/2)){
@@ -38,10 +46,10 @@ void main()
 		//float squaredDistToCenterOfEarth = pow(2000.0 + 6371000.0, 2);
 		//float horizonDist = sqrt(squaredDistToCenterOfEarth - (6371000.0 * 6371000.0));
 		vec3 normal = vec3(0,1,0);
-		float diff = max(0.4+0.6*dot(sunDirection, normal),0.0);
+		float diff = max(0.4+0.6*dot(sunDirection.xyz, normal),0.0);
 		vec3 diffuse = diff * vec3(0.0,0.412,0.58);
 		vec3 ambient = 0.05 * vec3(0.0,0.412,0.58);
-		vec3 halfwayDir = normalize(sunDirection + -normalize(rayDir.xyz));  
+		vec3 halfwayDir = normalize(sunDirection.xyz + -normalize(rayDir.xyz));  
 		float spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
 		vec3 specular = vec3(0.3) * spec; // assuming bright white light color
 		color = vec4(ambient + diffuse + specular, 1.0);

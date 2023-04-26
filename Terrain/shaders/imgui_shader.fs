@@ -1,5 +1,5 @@
 // Fragment Shader
-#version 410 core
+#version 420 core
 precision mediump float;
 
 uniform sampler2D heightMap;

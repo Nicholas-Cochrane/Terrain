@@ -3,6 +3,23 @@
 layout (location = 0) in vec3 apos;
 layout (location = 1) in vec2 aOffset;
 
+layout (std140, binding = 0) uniform lowUpdateShared
+{
+	float heightScale; // height of 1.0 on height map (aka heightest possible point on map)
+	float worldSize; // size of map in units/meters
+	float uTexelSize; // texel size of hieghtmap or 1.0/(height map resolution)
+	float nearPlane;
+	float farPlane;
+};
+
+layout (std140, binding = 1) uniform freqUpdateShared
+{
+	float time;
+	float windAngle;
+	vec4 sunDirection;
+	vec4 playerPos;
+};
+
 out vec3 fpos;
 out vec4 offsetPos;
 out vec3 vertNormal;
@@ -12,15 +29,9 @@ out float grassHeight;
 uniform sampler2D heightMap;
 uniform sampler2D windMap;
 uniform sampler2D grassHeightMap;
-uniform float heightScale;
-uniform float worldSize;
-uniform float uTexelSize;
-uniform vec3 playerPos; 
 uniform mat4 pvMatrix;
 uniform float farDist;
 uniform bool LODdist;
-uniform float time;
-uniform float windAngle;
 
 #define PI 3.1415926535897932384626433832795
 

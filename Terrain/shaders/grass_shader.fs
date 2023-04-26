@@ -1,14 +1,19 @@
 #version 420 core
 out vec4 FragColor;
 
+layout (std140, binding = 1) uniform freqUpdateShared
+{
+	float time;         //0
+	float windAngle;    //4
+	vec4 sunDirection;  //16
+	vec4 playerPos;     //32
+};
+
 in vec3 fpos;
 in vec4 offsetPos;
 in vec3 vertNormal;
 in vec3 gNormal;
 in float grassHeight;
-
-uniform vec3 sunDirection;
-uniform vec3 playerPos;
 
 void main()
 {
@@ -26,18 +31,18 @@ void main()
 		normal = vec3(-vertNormal);
 	}
 	
-	float diff = max(0.4+0.6*dot(sunDirection, gNormal),0.0);
+	float diff = max(0.4+0.6*dot(sunDirection.xyz, gNormal),0.0);
 	vec3 groundDiffuse = diff * grassColor;
 	
-	diff = max(0.7+0.3*dot(sunDirection, normal),0.0);
+	diff = max(0.7+0.3*dot(sunDirection.xyz, normal),0.0);
 	vec3 diffuse = diff * groundDiffuse * smoothstep(-(1.9-grassHeight),1.0,fpos.y); //TODO add ambient occlusion based on fpos and grassHeight
 	
-	vec3 viewDir = normalize(playerPos - offsetPos.xyz);
-	vec3 halfwayDir = normalize(sunDirection + viewDir);  
+	vec3 viewDir = normalize(playerPos.xyz - offsetPos.xyz);
+	vec3 halfwayDir = normalize(sunDirection.xyz + viewDir);  
     float spec = pow(max(dot(normal, halfwayDir), 0.0), 60.0);
 	vec3 specular = vec3(0.3) * spec; // assuming bright white light color
 	
 	FragColor = vec4(ambient+diffuse+specular,1.0);
 	//FragColor = vec4(0,normal.g,-normal.g,1);
-	//FragColor = vec4(normal, 1);
+	//FragColor = vec4(sunDirection.rgb,1);
 }

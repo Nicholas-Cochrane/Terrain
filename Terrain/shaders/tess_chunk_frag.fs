@@ -1,17 +1,29 @@
 // fragment shader
-#version 410 core
+#version 420 core
+
+layout (std140, binding = 0) uniform lowUpdateShared
+{
+	float heightScale; // height of 1.0 on height map (aka heightest possible point on map)
+	float worldSize; // size of map in units/meters
+	float uTexelSize; // texel size of hieghtmap or 1.0/(height map resolution)
+	float nearPlane;
+	float farPlane;
+};
+
+layout (std140, binding = 1) uniform freqUpdateShared
+{
+	float time;         //0
+	float windAngle;    //4
+	vec4 sunDirection;  //16
+	vec4 playerPos;     //32
+};
 
 uniform sampler2D heightMap;  // the texture corresponding to our height map
-uniform float heightScale; // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
-uniform float uTexelSize; // 1/total size of terrain
-uniform float nearPlane;
-uniform float farPlane;
-uniform vec3 sunDirection;
 uniform float latitude;
 
 in float Height; //Height from Evaluation Shader
 in vec2 HeightMapCoords;
-in vec4 mpvResult;
+//in vec4 mpvResult;
 
 out vec4 FragColor;
 
@@ -94,7 +106,7 @@ void main()
 	}else{
 		col = vec4(0.659,0.631,0.569, 1.0f);//rock
 	}
-	float diff = max(0.4+0.6*dot(normal, sunDirection), 0.0);
+	float diff = max(0.4+0.6*dot(normal, sunDirection.xyz), 0.0);
 	float depth = LinearizeDepth(gl_FragCoord.z) / farPlane;
 	//float gamma = 2.2; //TODO add gamma correction
 	

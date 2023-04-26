@@ -120,7 +120,7 @@ int main()
 
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSwapInterval(1);//framerate cap (1 = cap at framerate, 0 = no cap, 2 = half of monitor framerate)
+    glfwSwapInterval(0);//framerate cap (1 = cap at framerate, 0 = no cap, 2 = half of monitor framerate)
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);// tell GLFW to capture our mouse
@@ -167,6 +167,7 @@ int main()
 	std::cout << "maximum size of a work group in Z dimension " << max_compute_work_group_size[2] << std::endl;
 
 	std::cout << "Number of invocations in a single local work group that may be dispatched to a compute shader " << max_compute_work_group_invocations << std::endl;
+	//TODO add adjustment for work group sizes
 
 	//TODO: add TDR Prevention and Notification of TDR registries [https://learn.microsoft.com/en-us/windows-hardware/drivers/display/tdr-registry-keys]
 
@@ -328,7 +329,7 @@ int main()
 
 
     //Object Creation
-    //----------------
+    //--------------------------------------------------------------------------
     //create chunks
     std::vector<TessChunk*> chunkList;
     const int Max_Height = 1400;// height of brightest pixel in texture
@@ -347,7 +348,6 @@ int main()
         }
     }
 
-
     // Settings for use in graphics window
     const float defaultTerrainMinTessDist = 64.0;
     const float defaultTerrainMaxTessDist = 1000.0;
@@ -356,13 +356,8 @@ int main()
 
     // set Tess Uniforms
     tessShader->use();
-    tessShader->setFloat("uTexelSize", 1.0/computeHMWidth); // 1/total size of terrain  old: 1.0f/ (Divisions * Chunk_Width)
-    tessShader->setFloat("heightScale", Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
-    tessShader->setFloat("nearPlane", nearPlane);
-    tessShader->setFloat("farPlane", farPlane);
     tessShader->setFloat("minimumTessDist", TerrainMinTessDist);
     tessShader->setFloat("maximumTessDist", TerrainMaxTessDist);
-    glUniform3fv(glGetUniformLocation(tessShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
 
     //Pass height map Variables to Camera
     camera.passHeightMapData(heightMapCopyArray, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
@@ -378,11 +373,8 @@ int main()
     Grass grassObj(computeHightMap, glm::uvec2(computeHMWidth,computeHMHeight), windMap, grassHeightMap, glm::vec2(gameSize,gameSize), defaultGrassDensity, defaultGrassNear, defaultGrassFar);
 
     //set grass shader uniforms
-    grassShader->use();
-    grassShader->setFloat("heightScale", Max_Height);
-    grassShader->setFloat("worldSize", gameSize);
-    grassShader->setFloat("uTexelSize", 1.0/computeHMWidth);
-    glUniform3fv(glGetUniformLocation(grassShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
+    /// no uniforms to set not in UBI
+
     // create ocean
     // Settings for use in graphics window
     const unsigned int defaultOceanRes = 32;
@@ -395,13 +387,88 @@ int main()
     // set Ocean Shader Uniforms
     oceanShader->use();
     oceanShader->setUInt("tessellationLevel",oceanTessLevel);
-    oceanShader->setFloat("nearPlane", nearPlane);
-    oceanShader->setFloat("farPlane", farPlane);
 
-    bool tempSetUpOceanVerts = false;
+    // configure a uniform buffer object
+    // -------------------------------------------------------------------------------
+    struct LowUpdateBufferStruct{
+        float heightScale; // height of 1.0 on height map (aka heightest possible point on map)
+        float worldSize; // size of map in units/meters
+        float uTexelSize; // texel size of hieghtmap or 1.0/(height map resolution)
+        float nearPlane;
+        float farPlane;
+    };
 
-    //imgui
-    //-----
+    LowUpdateBufferStruct lowUpdateBufferData;
+    lowUpdateBufferData.heightScale = Max_Height;
+    lowUpdateBufferData.worldSize = gameSize;
+    lowUpdateBufferData.uTexelSize = 1.0/computeHMWidth;
+    lowUpdateBufferData.nearPlane = nearPlane;
+    lowUpdateBufferData.farPlane = farPlane;
+
+    // Uniform Block Index for rarely updates shared uniforms
+    unsigned int UBIGrassShaderLUS = glGetUniformBlockIndex(grassShader->ID, "lowUpdateShared");
+    unsigned int UBIOceanShaderLUS = glGetUniformBlockIndex(oceanShader->ID, "lowUpdateShared");
+    unsigned int UBITessShaderLUS = glGetUniformBlockIndex(tessShader->ID, "lowUpdateShared");
+    // link each shader's uniform block to this uniform binding point
+    glUniformBlockBinding(grassShader->ID, UBIGrassShaderLUS, 0);
+    glUniformBlockBinding(oceanShader->ID, UBIOceanShaderLUS, 0);
+    glUniformBlockBinding(tessShader->ID, UBITessShaderLUS, 0);
+    // Now actually create the buffer
+    unsigned int uboLowUpdateShared;
+    glGenBuffers(1, &uboLowUpdateShared);
+    glBindBuffer(GL_UNIFORM_BUFFER, uboLowUpdateShared);
+    glBufferData(GL_UNIFORM_BUFFER, sizeof(LowUpdateBufferStruct), NULL, GL_STATIC_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    // define the range of the buffer that links to a uniform binding point
+    glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboLowUpdateShared, 0, sizeof(LowUpdateBufferStruct));
+
+    glBindBuffer(GL_UNIFORM_BUFFER, uboLowUpdateShared);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(LowUpdateBufferStruct), &lowUpdateBufferData);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+
+    //freqUpdateShared
+    struct FreqUpdateBufferStruct{
+        float time;
+        float windAngle; // wind Direction in degrees
+        float padding1;
+        float padding2;
+        glm::vec4 sunDirection;
+        glm::vec4 playerPos;
+    };
+
+    FreqUpdateBufferStruct freqUpdateBufferData;
+    freqUpdateBufferData.time = static_cast<float>(glfwGetTime());
+    freqUpdateBufferData.windAngle = 0;
+    freqUpdateBufferData.sunDirection = glm::vec4(sunDirection,1.0);
+    freqUpdateBufferData.playerPos = glm::vec4(camera.Position,1.0);
+
+    // Uniform Block Index for rarely updates shared uniforms
+    unsigned int UBIGrassShaderFUS = glGetUniformBlockIndex(grassShader->ID, "freqUpdateShared");
+    unsigned int UBIOceanShaderFUS = glGetUniformBlockIndex(oceanShader->ID, "freqUpdateShared");
+    unsigned int UBITessShaderFUS = glGetUniformBlockIndex(tessShader->ID, "freqUpdateShared");
+    unsigned int UBISkyShaderFUS = glGetUniformBlockIndex(screenQuadShader->ID, "freqUpdateShared");
+    // link each shader's uniform block to this uniform binding point
+    glUniformBlockBinding(grassShader->ID, UBIGrassShaderFUS, 1);
+    glUniformBlockBinding(oceanShader->ID, UBIOceanShaderFUS, 1);
+    glUniformBlockBinding(tessShader->ID, UBITessShaderFUS, 1);
+    glUniformBlockBinding(screenQuadShader->ID, UBISkyShaderFUS, 1);
+
+    // Now actually create the buffer
+    unsigned int uboFreqUpdateShared;
+    glGenBuffers(1, &uboFreqUpdateShared);
+    glBindBuffer(GL_UNIFORM_BUFFER, uboFreqUpdateShared);
+    glBufferData(GL_UNIFORM_BUFFER, sizeof(FreqUpdateBufferStruct), NULL, GL_STATIC_DRAW); //todo change size
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    // define the range of the buffer that links to a uniform binding point
+    glBindBufferRange(GL_UNIFORM_BUFFER, 1, uboFreqUpdateShared, 0, sizeof(FreqUpdateBufferStruct));
+
+    glBindBuffer(GL_UNIFORM_BUFFER, uboFreqUpdateShared);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(FreqUpdateBufferStruct), &freqUpdateBufferData);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+    //imgui setup
+    //-----------------------------------------------------------------
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -424,7 +491,6 @@ int main()
         double currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-
         frameNumber++;
         // If a second has passed.
         if ( currentFrame - lastSec >= 1.0 )
@@ -435,12 +501,12 @@ int main()
             }
 
         // input
-        // -----
+        // ---------------------------------------------------------------
         processInput(window);
 
 
         // render
-        // ------
+        // ----------------------------------------------------------------
         if(!glfwGetWindowAttrib(window, GLFW_ICONIFIED))
         { // if window is minimized do not render (Rendering while at resolution 0x0 cause glm::matix_clip_space.inl assertion to fail)
             //glCheckError();
@@ -464,6 +530,16 @@ int main()
             //tessShader.setMat4("projection", projection);
 
             glm::mat4 projection2 = glm::perspective(glm::radians(40.0f), static_cast<float>(viewportData[2])/ static_cast<float>(viewportData[3]), nearPlane, farPlane);//TODO Remove
+
+            //Set shared uniform buffer
+            freqUpdateBufferData.time = static_cast<float>(currentFrame); ///TODO fix potential problems with lack of precision with floats
+            freqUpdateBufferData.windAngle = windAngle;
+            freqUpdateBufferData.sunDirection = glm::vec4(sunDirection,1.0f);
+            freqUpdateBufferData.playerPos = glm::vec4(camera.Position,1.0f);
+
+            glBindBuffer(GL_UNIFORM_BUFFER, uboFreqUpdateShared);
+            glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(FreqUpdateBufferStruct), &freqUpdateBufferData);
+            glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
             //ScreenQuad (sky) draw
             //TODO: try stencil mask
@@ -492,20 +568,19 @@ int main()
             tessShader->use();
             //send player position to shader
             glUniform4fv(glGetUniformLocation(tessShader->ID, "camPos"), 1, glm::value_ptr(glm::vec4(camera.Position, 1.0f)));
-
             //glCheckError();
+
             // Begin Draw
-            //------------------------------------------------
+            //-----------------------------------------------------------------------
             //Draw Ground
+            chunkList.at(0)->prepShader(*tessShader);
             for(unsigned int i = 0; i < chunkList.size(); i++){
                 chunkList.at(i)->draw(*tessShader, view, projection, projection2);
             }
 
             //Draw Ocean
-            if(!tempSetUpOceanVerts){
-                oceanObj.setUpVertices(YCorrectedOriginView, projection, camera.Position, 0);
-                //tempSetUpOceanVerts = true;
-            }
+            oceanObj.setUpVertices(YCorrectedOriginView, projection, camera.Position, 0);
+
             oceanShader->use();
             oceanShader->setFloat("time", static_cast<float>(currentFrame));///TODO fix potential problems with lack of precision with floats
             glUniform3fv(glGetUniformLocation(oceanShader->ID, "playerPos"),1, glm::value_ptr(camera.Position));
@@ -513,18 +588,13 @@ int main()
             oceanObj.draw(*oceanShader, YCorrectedOriginView, projection);
 
             //Draw Grass
-            grassShader->use();
-            grassShader->setFloat("time", static_cast<float>(currentFrame));///TODO fix potential problems with lack of precision with floats
-            grassShader->setFloat("windAngle", windAngle);
-            glUniform3fv(glGetUniformLocation(grassShader->ID, "playerPos"),1, glm::value_ptr(camera.Position));
-            glUniform3fv(glGetUniformLocation(grassShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
             grassObj.draw(*grassShader, view, projection, camera);
             //glCheckError();
 
 
 
             //Create ImGui windows
-            //--------------------
+            //--------------------------------------------------------
 
             ImGui::Begin("Pos");
                 std::string positionStr = "X:" + std::to_string(camera.Position.x);
@@ -591,36 +661,43 @@ int main()
                     tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
                     //Set uniforms
                     tessShader->use();
-                    tessShader->setFloat("uTexelSize", 1.0/computeHMWidth); // 1/total size of terrain
-                    tessShader->setFloat("heightScale", Max_Height); // (number of units (or maximum tiles) / texture size in meters) * maximum height of height map from 0
-                    tessShader->setFloat("nearPlane", nearPlane);
-                    tessShader->setFloat("farPlane", farPlane);
                     tessShader->setFloat("minimumTessDist", TerrainMinTessDist);
                     tessShader->setFloat("maximumTessDist", TerrainMaxTessDist);
-                    glUniform3fv(glGetUniformLocation(tessShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
+                    unsigned int UBITessShaderLUS = glGetUniformBlockIndex(tessShader->ID, "lowUpdateShared");
+                    unsigned int UBITessShaderFUS = glGetUniformBlockIndex(tessShader->ID, "freqUpdateShared");
+                    // link each shader's uniform block to this uniform binding point
+                    glUniformBlockBinding(tessShader->ID, UBITessShaderLUS, 0);
+                    glUniformBlockBinding(tessShader->ID, UBITessShaderFUS, 1);
                 }
                 if (ImGui::Button("Reload Sky Shader")){
                     delete screenQuadShader;
                     screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs", NULL, NULL);
                     screenQuadShader->use();
-                    glUniform3fv(glGetUniformLocation(screenQuadShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
+                    unsigned int UBISkyShaderFUS = glGetUniformBlockIndex(screenQuadShader->ID, "freqUpdateShared");
+                    // link each shader's uniform block to this uniform binding point
+                    glUniformBlockBinding(screenQuadShader->ID, UBISkyShaderFUS, 1);
                 }
                 if (ImGui::Button("Reload Ocean Shader")){
                     delete oceanShader;
                     oceanShader = new Shader("shaders/ocean_shader.vs", "shaders/ocean_shader.fs", "shaders/ocean_shader.tcs", "shaders/ocean_shader.tes");
                     oceanShader->use();
                     oceanShader->setUInt("tessellationLevel",oceanTessLevel);
-                    oceanShader->setFloat("nearPlane", nearPlane);
-                    oceanShader->setFloat("farPlane", farPlane);
+                    unsigned int UBIOceanShaderLUS = glGetUniformBlockIndex(oceanShader->ID, "lowUpdateShared");
+                    unsigned int UBIOceanShaderFUS = glGetUniformBlockIndex(oceanShader->ID, "fowUpdateShared");
+                    // link each shader's uniform block to this uniform binding point
+                    glUniformBlockBinding(oceanShader->ID, UBIOceanShaderLUS, 0);
+                    glUniformBlockBinding(oceanShader->ID, UBIOceanShaderFUS, 1);
                 }
                 if (ImGui::Button("Reload Grass Shader")){
                     delete grassShader;
                     grassShader = new Shader("shaders/grass_shader.vs", "shaders/grass_shader.fs", NULL, NULL);
                     grassShader->use();
-                    grassShader->setFloat("heightScale", Max_Height);
-                    grassShader->setFloat("worldSize", gameSize);
-                    grassShader->setFloat("uTexelSize", 1.0/computeHMWidth);
                     glUniform3fv(glGetUniformLocation(grassShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
+                    unsigned int UBIGrassShaderLUS = glGetUniformBlockIndex(grassShader->ID, "lowUpdateShared");
+                     unsigned int UBIGrassShaderFUS = glGetUniformBlockIndex(grassShader->ID, "freqUpdateShared");
+                    // link each shader's uniform block to this uniform binding point
+                    glUniformBlockBinding(grassShader->ID, UBIGrassShaderLUS, 0);
+                    glUniformBlockBinding(grassShader->ID, UBIGrassShaderFUS, 1);
                 }
                 if (ImGui::Button("Reload Compute Shader")){
                     delete imageGenShader;
@@ -752,6 +829,8 @@ int main()
 
                     sunDirection = glm::vec3(std::sin(zenith) * std::sin(azimuth360), std::cos(zenith) , std::sin(zenith) *  -std::cos(azimuth360)); //todo fix sun dipping south at noon
                     sunDirection = glm::normalize(sunDirection);
+                    textString = "Sun Dir:" + std::to_string(sunDirection.x) + ", " + std::to_string(sunDirection.y) + ", " + std::to_string(sunDirection.z) + ", ";
+                    ImGui::Text(textString.c_str());
 
                     //windDirection
                     ImGui::SliderFloat("Wind Direction:", &windAngle, 0, 360, "%.5f");
@@ -773,7 +852,6 @@ int main()
 
                     tessShader->use();
                     tessShader->setFloat("latitude", latitude);
-                    glUniform3fv(glGetUniformLocation(tessShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
                 ImGui::End();
             }
 

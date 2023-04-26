@@ -1,5 +1,5 @@
 // Vertex Shader
-#version 410 core
+#version 420 core
 
 precision mediump float;
 layout (location = 0) in vec2 Position;
