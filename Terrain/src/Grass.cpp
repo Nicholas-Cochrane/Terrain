@@ -132,12 +132,38 @@ void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMat
     glBindTexture(GL_TEXTURE_2D, grassHeightMap);
 
 
-    int temp = 0;
 
     glm::mat4 pvMatrix = projectionMatrix * viewMatrix;
     shader.setMat4("pvMatrix", pvMatrix);
     shader.setFloat("farDist", farLOD);
     glUniform3fv(glGetUniformLocation(shader.ID, "playerPos"),1, glm::value_ptr(camera.Position));
+
+    unsigned int numberOfCorners = (chunksPerLine+1)*(chunksPerLine+1);
+    std::vector<glm::vec4> cornerViewCoords;
+    std::vector<glm::vec4> chunkCenters;
+    chunkCenters.resize(chunksPerLine * chunksPerLine);
+    cornerViewCoords.resize(numberOfCorners);
+
+    for(unsigned int c = 0; c < numberOfCorners; c++){ ///TODO add look up for elevation
+        glm::vec3 corner = glm::vec3(((c%(chunksPerLine + 1))*chunkSize) -farLOD, 0, ((c/(chunksPerLine + 1))*chunkSize) -farLOD );
+        float modOffsetX = glm::floor((camera.Position.x)/(farLOD*2))*(farLOD*2);
+        if(abs((modOffsetX + corner.x)-camera.Position.x) > farLOD){
+            modOffsetX = modOffsetX + farLOD*2;
+        }
+        float modOffsetZ = glm::floor((camera.Position.z)/(farLOD*2))*(farLOD*2);
+        if(abs((modOffsetZ + corner.z)-camera.Position.z) > farLOD){
+            modOffsetZ = modOffsetZ + farLOD*2;
+        }
+        corner += glm::vec3(modOffsetX,camera.Elevation,modOffsetZ); ///TODO add look up for elevation
+        bool looping = abs((corner.z)-camera.Position.z) > farLOD-(chunkSize) || abs((corner.x)-camera.Position.x) > farLOD-(chunkSize);
+
+        if(!looping){
+            cornerViewCoords.at(c) = pvMatrix * glm::vec4(corner, 1.0);
+        } else {
+            // if looping fake the point always being with in the frustum
+            cornerViewCoords.at(c) = glm::vec4 (0,0,0,1.0);
+        }
+    }
 
     for(unsigned int i = 0; i < farChunkVAOArray.size(); i++){
         glm::vec3 chunkCenter = glm::vec3(((i%chunksPerLine)*chunkSize + (chunkSize/2))-farLOD, 0,((i/chunksPerLine)*chunkSize + (chunkSize/2))-farLOD);
@@ -150,11 +176,20 @@ void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMat
             modOffsetZ = modOffsetZ + farLOD*2;
         }
         chunkCenter += glm::vec3(modOffsetX,camera.Elevation,modOffsetZ);
-        bool looping = abs((chunkCenter.z)-camera.Position.z) > farLOD-(chunkSize) || abs((chunkCenter.x)-camera.Position.x) > farLOD-(chunkSize);
 
-        glm::vec4 chunkCenterView = pvMatrix * glm::vec4(chunkCenter,1.0);
-        if(chunkCenterView.z < -40.0 && !looping){ // do not render chunks not in view
-            temp++; ///TODO add x and y axis
+        int currCorner = i + (i/(chunksPerLine));
+
+        if((  cornerViewCoords.at(currCorner).z < -1.5
+           && cornerViewCoords.at(currCorner + 1).z < -1.5
+           && cornerViewCoords.at(currCorner + chunksPerLine + 1).z < -1.5
+           && cornerViewCoords.at(currCorner + chunksPerLine + 2).z < -1.5)
+           /*||( cornerViewCoords.at(currCorner).y > 40
+           && cornerViewCoords.at(currCorner + 1).y > 40
+           && cornerViewCoords.at(currCorner + chunksPerLine + 1).y > 40
+           && cornerViewCoords.at(currCorner + chunksPerLine + 2).y > 40)*/)
+           {
+            // if  all corners are off screen
+            // todo add x and y
             continue;
         }
 
@@ -162,14 +197,13 @@ void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMat
             shader.setBool("LODdist", 1);
             glBindVertexArray(nearChunkVAOArray.at(i));
             glDrawArraysInstanced(GL_TRIANGLES, 0, nearModel.size() , vertsPerChunkLine*vertsPerChunkLine);
-        }else{
+        }else if(glm::distance(chunkCenter,camera.Position) < (2.0f * farLOD) ){ // if more than twice farLOD away do not render (ex: when flying)
             shader.setBool("LODdist", 0);
             glBindVertexArray(farChunkVAOArray.at(i));
             glDrawArraysInstanced(GL_TRIANGLES, 0, farModel.size() , vertsPerChunkLine*vertsPerChunkLine);
         }
 
     }
-    //std::cout << temp << std::endl;
 
     glBindVertexArray(0); // unbind
     glEnable(GL_CULL_FACE);

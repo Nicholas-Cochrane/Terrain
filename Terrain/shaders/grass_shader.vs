@@ -25,6 +25,7 @@ out vec4 offsetPos;
 out vec3 vertNormal;
 out vec3 gNormal;
 out float grassHeight;
+//out float corner;
 
 uniform sampler2D heightMap;
 uniform sampler2D windMap;
@@ -61,14 +62,7 @@ void main()
 	if(abs((modOffsetZ + aOffset.y)-playerPos.z) > farDist){
 		modOffsetZ = modOffsetZ + farDist*2;
 	}
-	
 	vec2 combOffset = aOffset + vec2(modOffsetX,modOffsetZ);
-	vec2 fadeDist = combOffset - playerPos.xz;
-	float fadeStrength = max(abs(fadeDist.x), abs(fadeDist.y))/(farDist);
-	fadeStrength *= distance(combOffset, playerPos.xz)/farDist;
-	fadeStrength *= fadeStrength* fadeStrength * fadeStrength;
-	fadeStrength -= 0.15;
-	fadeStrength = max(0, fadeStrength);
 
 	vec2 texCoord = ((worldSize/2) + vec2(combOffset.x, -combOffset.y))/worldSize;
 	float height = texture(heightMap, texCoord).r * heightScale;
@@ -83,6 +77,18 @@ void main()
 		gl_Position = vec4(-2,-2,-2,1);// do not render
 		return;
 	}
+	
+	float flyingFadeStrength = distance(vec3(combOffset.x, height, combOffset.y), playerPos.xyz)/(2*farDist);
+	flyingFadeStrength = pow(flyingFadeStrength,10);
+	vec2 fadeDist = combOffset - playerPos.xz;
+	float fadeStrength = max(abs(fadeDist.x), abs(fadeDist.y))/(farDist);
+	fadeStrength *= distance(combOffset, playerPos.xz)/farDist;
+	fadeStrength *= fadeStrength* fadeStrength * fadeStrength;
+	fadeStrength -= 0.15;
+	fadeStrength = max(0, fadeStrength);
+	fadeStrength = max(flyingFadeStrength, fadeStrength);
+	
+	
 	float windRadians = (windAngle)*(PI/180);
 	vec2 windDirection = vec2(sin(windRadians), -cos(windRadians));
 	vec2 offsetHash = hash(aOffset);
@@ -108,7 +114,9 @@ void main()
 	*/
 	
 	/*if(gl_InstanceID < 2u){// find corners of chunk
-		fpos = vec3(1,1,1); 
+		corner = 1.0; 
+	}else{
+		corner = 0.0;
 	}*/
 	
 	float heightPower = pow(heightAdjPos.y,1.5);
