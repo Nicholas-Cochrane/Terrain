@@ -201,7 +201,7 @@ void main() {
 	value.r = mix(noise,log(noise+2.16395)-1.15182,smoothstep(0.6,0.99,dist)); // lerp between noise and noise from 0 to -1 on a ln curve
 	value.g = 0.0;//octPNoiseLoop(uv*0.5, 9)*1.2;
 	
-	//value.r = 0.1;
+	//value.r = 0.05;
 
 	//value.rg = fract(uv*10);
     imageStore(imgOutput, texelCoord, value);

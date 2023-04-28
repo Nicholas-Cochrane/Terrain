@@ -14,6 +14,7 @@ in vec4 offsetPos;
 in vec3 vertNormal;
 in vec3 gNormal;
 in float grassHeight;
+//in vec3 debugColor;
 //in float corner;
 
 void main()
@@ -44,9 +45,8 @@ void main()
 	vec3 specular = vec3(0.3) * spec; // assuming bright white light color
 	
 	FragColor = vec4(ambient+diffuse+specular,1.0);
-	//FragColor = vec4(0,normal.g,-normal.g,1);
-	//FragColor = vec4(sunDirection.rgb,1);
 	/*if(corner == 1.0){
 		FragColor = vec4(1,0,1,1);
 	}*/
+	//FragColor = vec4(debugColor,1.0);
 }

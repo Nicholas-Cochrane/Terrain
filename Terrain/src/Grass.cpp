@@ -115,7 +115,7 @@ void Grass::getSettings(float* outDensity, float* outNearLOD, float* outFarLOD)
     *outFarLOD = farLOD;
 }
 
-void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix, Camera& camera)
+void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix, Camera& camera, bilinearMapReader& heightMapReader, float heightMapMax, float gameSize)
 {
     glDisable(GL_CULL_FACE);
     shader.use();
@@ -136,7 +136,6 @@ void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMat
     glm::mat4 pvMatrix = projectionMatrix * viewMatrix;
     shader.setMat4("pvMatrix", pvMatrix);
     shader.setFloat("farDist", farLOD);
-    glUniform3fv(glGetUniformLocation(shader.ID, "playerPos"),1, glm::value_ptr(camera.Position));
 
     unsigned int numberOfCorners = (chunksPerLine+1)*(chunksPerLine+1);
     std::vector<glm::vec4> cornerViewCoords;
@@ -154,15 +153,13 @@ void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMat
         if(abs((modOffsetZ + corner.z)-camera.Position.z) > farLOD){
             modOffsetZ = modOffsetZ + farLOD*2;
         }
-        corner += glm::vec3(modOffsetX,camera.Elevation,modOffsetZ); ///TODO add look up for elevation
-        bool looping = abs((corner.z)-camera.Position.z) > farLOD-(chunkSize) || abs((corner.x)-camera.Position.x) > farLOD-(chunkSize);
+        corner += glm::vec3(modOffsetX,0,modOffsetZ); ///TODO add look up for elevation
+        corner.y = heightMapReader.read(corner.x, -corner.z, gameSize, 0) * heightMapMax;
+        //bool looping = abs((corner.z)-camera.Position.z) > farLOD-(chunkSize) || abs((corner.x)-camera.Position.x) > farLOD-(chunkSize);
 
-        if(!looping){
-            cornerViewCoords.at(c) = pvMatrix * glm::vec4(corner, 1.0);
-        } else {
-            // if looping fake the point always being with in the frustum
-            cornerViewCoords.at(c) = glm::vec4 (0,0,0,1.0);
-        }
+        cornerViewCoords.at(c) = pvMatrix * glm::vec4(corner, 1.0);
+        cornerViewCoords.at(c).x = cornerViewCoords.at(c).x / cornerViewCoords.at(c).w;
+        cornerViewCoords.at(c).y = cornerViewCoords.at(c).y / cornerViewCoords.at(c).w;
     }
 
     for(unsigned int i = 0; i < farChunkVAOArray.size(); i++){
@@ -176,24 +173,38 @@ void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMat
             modOffsetZ = modOffsetZ + farLOD*2;
         }
         chunkCenter += glm::vec3(modOffsetX,camera.Elevation,modOffsetZ);
+        float distToCenter = glm::distance(chunkCenter,camera.Position) ;
 
         int currCorner = i + (i/(chunksPerLine));
 
-        if((  cornerViewCoords.at(currCorner).z < -1.5
-           && cornerViewCoords.at(currCorner + 1).z < -1.5
-           && cornerViewCoords.at(currCorner + chunksPerLine + 1).z < -1.5
-           && cornerViewCoords.at(currCorner + chunksPerLine + 2).z < -1.5)
-           /*||( cornerViewCoords.at(currCorner).y > 40
-           && cornerViewCoords.at(currCorner + 1).y > 40
-           && cornerViewCoords.at(currCorner + chunksPerLine + 1).y > 40
-           && cornerViewCoords.at(currCorner + chunksPerLine + 2).y > 40)*/)
+        if(((  cornerViewCoords.at(currCorner).z < -1.1 // top "left" corner inbounds check (not behind camera)
+           && cornerViewCoords.at(currCorner + 1).z < -1.1 //top "right"
+           && cornerViewCoords.at(currCorner + chunksPerLine + 1).z < -1.1 // bottom "left"
+           && cornerViewCoords.at(currCorner + chunksPerLine + 2).z < -1.1)// bottom "right"
+           ||( cornerViewCoords.at(currCorner).x < -1.1 //left
+           && cornerViewCoords.at(currCorner + 1).x < -1.1
+           && cornerViewCoords.at(currCorner + chunksPerLine + 1).x < -1.1
+           && cornerViewCoords.at(currCorner + chunksPerLine + 2).x < -1.1)
+           ||( cornerViewCoords.at(currCorner).x > 1.1 //right
+           && cornerViewCoords.at(currCorner + 1).x > 1.1
+           && cornerViewCoords.at(currCorner + chunksPerLine + 1).x > 1.1
+           && cornerViewCoords.at(currCorner + chunksPerLine + 2).x > 1.1)
+           ||( cornerViewCoords.at(currCorner).y > 1.1 //above (ex: when looking down)
+           && cornerViewCoords.at(currCorner + 1).y > 1.1
+           && cornerViewCoords.at(currCorner + chunksPerLine + 1).y > 1.1
+           && cornerViewCoords.at(currCorner + chunksPerLine + 2).y > 1.1)
+           ||( cornerViewCoords.at(currCorner).y < -1.1 // below
+           && cornerViewCoords.at(currCorner + 1).y < -1.1
+           && cornerViewCoords.at(currCorner + chunksPerLine + 1).y < -1.1
+           && cornerViewCoords.at(currCorner + chunksPerLine + 2).y < -1.1))
+
+           && distToCenter > chunkSize) // not close to camera to avoid clipping chuck that takes up whole screen but edges are off screen
            {
             // if  all corners are off screen
-            // todo add x and y
             continue;
         }
 
-        if(glm::distance(chunkCenter,camera.Position) < nearLOD){
+        if(distToCenter < nearLOD){
             shader.setBool("LODdist", 1);
             glBindVertexArray(nearChunkVAOArray.at(i));
             glDrawArraysInstanced(GL_TRIANGLES, 0, nearModel.size() , vertsPerChunkLine*vertsPerChunkLine);
@@ -204,7 +215,6 @@ void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMat
         }
 
     }
-
     glBindVertexArray(0); // unbind
     glEnable(GL_CULL_FACE);
 }

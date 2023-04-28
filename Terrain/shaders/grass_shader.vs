@@ -25,6 +25,7 @@ out vec4 offsetPos;
 out vec3 vertNormal;
 out vec3 gNormal;
 out float grassHeight;
+//out vec3 debugColor;
 //out float corner;
 
 uniform sampler2D heightMap;

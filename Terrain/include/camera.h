@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "CustomEnumerators.h"
+#include "bilinearMapReader.h"
 
 #include <vector>
 #include <cmath>
@@ -85,13 +86,12 @@ public:
         return glm::lookAt(glm::vec3(0,Position.y,0), glm::vec3(0,Position.y,0) + Front, Up);
     }
 
-    void passHeightMapData(float *heightMapPtr, unsigned int *height, unsigned int *width, const int* maxHeight, const float* inGameSize, Transfer_Status *status){
-        heightMapArray = heightMapPtr;
+    void passHeightMapData(bilinearMapReader *heightMapPtr, unsigned int *height, unsigned int *width, const int* maxHeight, const float* inGameSize, Transfer_Status *status){
+        heightMapReader = heightMapPtr;
         heightMapHeight = height;
         heightMapWidth = width;
         heightMapMaxHeight = maxHeight;
         gameSize = inGameSize;
-        heightMapStatus = status;
     }
 
     // processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
@@ -111,22 +111,9 @@ public:
         glm::vec2 normalizedPlayerPos = glm::vec2((Position.x / *gameSize)+0.5, (-Position.z/ *gameSize)+0.5); //(0,0) is Bottom left, (1,1) is top right
         if(normalizedPlayerPos.x > 0.0 && normalizedPlayerPos.x < 1.0 &&
            normalizedPlayerPos.y > 0.0 && normalizedPlayerPos.y < 1.0 &&
-           heightMapStatus != NULL && *heightMapStatus == COMPLETE)
+           heightMapReader != NULL && heightMapReader->getStatus() == COMPLETE)
         {
-            float yIntComp, xIntComp;
-            float yFrac = std::modf(normalizedPlayerPos.y * (*heightMapHeight-1), &yIntComp);
-            float xFrac = std::modf(normalizedPlayerPos.x * (*heightMapWidth-1), &xIntComp);
-            int xInt = static_cast<unsigned int>(xIntComp);
-            int yInt = static_cast<unsigned int>(yIntComp);
-
-            // e = array[(y*rowLength + x)*2] (2 skips over green channel
-            float bl = heightMapArray[((yInt * *heightMapWidth) + xInt)*2] * *heightMapMaxHeight;
-            float br = heightMapArray[((yInt * *heightMapWidth) + xInt+1)*2] * *heightMapMaxHeight;
-            float tl = heightMapArray[(((yInt+1) * *heightMapWidth) + xInt)*2] * *heightMapMaxHeight;
-            float tr = heightMapArray[(((yInt+1) * *heightMapWidth) + xInt+1)*2] * *heightMapMaxHeight;
-            float topLerp = tl + (tr - tl) * xFrac;
-            float botLerp = bl + (br - bl) * xFrac;
-            Elevation = botLerp + (topLerp - botLerp) * yFrac;
+            Elevation = heightMapReader->normalizedRead(normalizedPlayerPos.x, normalizedPlayerPos.y, 0)* *heightMapMaxHeight;
 
         }else{
             Elevation = ELEVATION; //Set Elevation to Default
@@ -174,8 +161,7 @@ private:
     unsigned int* heightMapWidth;
     const int* heightMapMaxHeight;
     const float* gameSize;
-    float* heightMapArray;
-    Transfer_Status* heightMapStatus = NULL;
+    bilinearMapReader* heightMapReader;
 
     // calculates the front vector from the Camera's (updated) Euler Angles
     void updateCameraVectors()

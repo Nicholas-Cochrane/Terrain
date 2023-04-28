@@ -31,6 +31,7 @@
 #include "include/CustomEnumerators.h"
 #include "include/Ocean.h"
 #include "include/Grass.h"
+#include "include/bilinearMapReader.h"
 #define GLFW_DLL
 
 //Function Delectations
@@ -238,7 +239,7 @@ int main()
     unsigned int computeHightMap;
     unsigned int computeHMWidth= 9600;
     unsigned int computeHMHeight= 9600;
-    float* heightMapCopyArray = new float[computeHMHeight*computeHMWidth*2];
+    bilinearMapReader heightMapCopy;
     Transfer_Status heightMapCopied = NOT_STARTED;
 
 	glGenTextures(1, &computeHightMap);
@@ -360,7 +361,7 @@ int main()
     tessShader->setFloat("maximumTessDist", TerrainMaxTessDist);
 
     //Pass height map Variables to Camera
-    camera.passHeightMapData(heightMapCopyArray, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
+    camera.passHeightMapData(&heightMapCopy, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
 
     // create grass
     const float defaultGrassDensity = 0.35;
@@ -588,7 +589,7 @@ int main()
             oceanObj.draw(*oceanShader, YCorrectedOriginView, projection);
 
             //Draw Grass
-            grassObj.draw(*grassShader, view, projection, camera);
+            grassObj.draw(*grassShader, view, projection, camera, heightMapCopy, Max_Height, gameSize);
             //glCheckError();
 
 
@@ -1198,8 +1199,7 @@ int main()
         //TODO MOVE ME and add in menu integration (or multi threading?)
         if(heightMapCopied == NOT_STARTED){
             heightMapCopied = IN_PROGRESS;
-            glBindTexture(GL_TEXTURE_2D, computeHightMap);
-            glGetTexImage(GL_TEXTURE_2D,0,GL_RG, GL_FLOAT, heightMapCopyArray);
+            heightMapCopy.write(computeHMWidth, computeHMHeight, computeHightMap, GL_RG, 2);
             glCheckError();
             heightMapCopied = COMPLETE;
         }

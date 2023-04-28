@@ -10,6 +10,7 @@
 
 #include "shader_s.h"
 #include "camera.h"
+#include "bilinearMapReader.h"
 
 #include <iostream>
 #include <math.h>
@@ -22,7 +23,7 @@ class Grass
         virtual ~Grass();
         void changeSettings(float newDensity, float newNearLOD, float newFarLOD);
         void getSettings (float* outDensity, float* outNearLOD, float* outFarLOD);
-        void draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix, Camera& camera);
+        void draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix, Camera& camera, bilinearMapReader& heightMapReader, float heightMapMax, float gameSize);
 
         void setUpVertices(); // Create verts to pass to VBO
         void setUpBuffers(); // Create VAO/VBO and sending vertex data into different function
