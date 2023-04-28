@@ -1018,18 +1018,19 @@ int main()
                     ImGui::Text("Near:");
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
-                    ImGui::DragScalar("##GrassRenderDistNear", ImGuiDataType_Float, &displayGrassNear, 1.0f, &grassLower, &displayGrassFar, "%.0f", ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::DragScalar("##GrassRenderDistNear", ImGuiDataType_Float, &displayGrassNear, 10.0f, &grassLower, &displayGrassFar, "%.0f", ImGuiSliderFlags_AlwaysClamp);
                     ImGui::SameLine();
                     ImGui::Text("Far:");
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
-                    ImGui::DragScalar("##GrassRenderDistFar", ImGuiDataType_Float, &displayGrassFar, 1.0f, &displayGrassNear, &grassUpper, "%.0f", ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::DragScalar("##GrassRenderDistFar", ImGuiDataType_Float, &displayGrassFar, 10.0f, &displayGrassNear, &grassUpper, "%.0f", ImGuiSliderFlags_AlwaysClamp);
 
                     ImGui::Text("Average Speration in Meters:");
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
                     ImGui::DragScalar("##GrassDensity", ImGuiDataType_Float, &displayGrassDensity, 0.01f, &grassDensityLower, &grassDensityUpper, "%.02f", ImGuiSliderFlags_AlwaysClamp);
-
+                    displayGrassNear = static_cast<float>( static_cast<int>(displayGrassNear) - static_cast<int>(displayGrassNear)%5); // round to nearest mul of 5
+                    displayGrassFar = static_cast<float>( static_cast<int>(displayGrassFar) - static_cast<int>(displayGrassFar)%5); // round to nearest mul of 5
 
 
                 ImGui::End();

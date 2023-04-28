@@ -68,7 +68,7 @@ Grass::Grass(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, unsi
     farVBOclear = true;
     instanceVBOclear = true;
 
-
+    chunksPerLine = farLOD/5;
     totalChunks = chunksPerLine*chunksPerLine;
     chunkSize = (farLOD*2)/chunksPerLine;
     vertsPerChunkLine = std::round(chunkSize/density);
@@ -100,6 +100,7 @@ void Grass::changeSettings(float newDensity, float newNearLOD, float newFarLOD)
     nearLOD = newNearLOD;
     farLOD = newFarLOD;
 
+    chunksPerLine = farLOD/5;
     totalChunks = chunksPerLine*chunksPerLine;
     chunkSize = (farLOD*2)/chunksPerLine;
     vertsPerChunkLine = std::round(chunkSize/density);
