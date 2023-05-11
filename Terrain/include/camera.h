@@ -86,7 +86,7 @@ public:
         return glm::lookAt(glm::vec3(0,Position.y,0), glm::vec3(0,Position.y,0) + Front, Up);
     }
 
-    void passHeightMapData(bilinearMapReader *heightMapPtr, unsigned int *height, unsigned int *width, const int* maxHeight, const float* inGameSize, Transfer_Status *status){
+    void passHeightMapData(bilinearMapReader *heightMapPtr, unsigned int& height, unsigned int& width, const int& maxHeight, const float& inGameSize){
         heightMapReader = heightMapPtr;
         heightMapHeight = height;
         heightMapWidth = width;
@@ -108,12 +108,12 @@ public:
         if (direction == RIGHT)
             Position += Right * velocity;
 
-        glm::vec2 normalizedPlayerPos = glm::vec2((Position.x / *gameSize)+0.5, (-Position.z/ *gameSize)+0.5); //(0,0) is Bottom left, (1,1) is top right
+        glm::vec2 normalizedPlayerPos = glm::vec2((Position.x / gameSize)+0.5, (-Position.z/ gameSize)+0.5); //(0,0) is Bottom left, (1,1) is top right
         if(normalizedPlayerPos.x > 0.0 && normalizedPlayerPos.x < 1.0 &&
            normalizedPlayerPos.y > 0.0 && normalizedPlayerPos.y < 1.0 &&
-           heightMapReader != NULL && heightMapReader->getStatus() == COMPLETE)
+           heightMapReader != nullptr && heightMapReader->getStatus() == COMPLETE)
         {
-            Elevation = heightMapReader->normalizedRead(normalizedPlayerPos.x, normalizedPlayerPos.y, 0)* *heightMapMaxHeight;
+            Elevation = heightMapReader->normalizedRead(normalizedPlayerPos.x, normalizedPlayerPos.y, 0)* heightMapMaxHeight;
 
         }else{
             Elevation = ELEVATION; //Set Elevation to Default
@@ -157,10 +157,10 @@ public:
     }
 
 private:
-    unsigned int* heightMapHeight;
-    unsigned int* heightMapWidth;
-    const int* heightMapMaxHeight;
-    const float* gameSize;
+    unsigned int heightMapHeight;
+    unsigned int heightMapWidth;
+    int heightMapMaxHeight;
+    float gameSize;
     bilinearMapReader* heightMapReader;
 
     // calculates the front vector from the Camera's (updated) Euler Angles

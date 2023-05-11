@@ -41,7 +41,7 @@ class ComputeShader
         unsigned int compute;
         // compute shader
         compute = glCreateShader(GL_COMPUTE_SHADER);
-        glShaderSource(compute, 1, &cShaderCode, NULL);
+        glShaderSource(compute, 1, &cShaderCode, nullptr);
         glCompileShader(compute);
         checkCompileErrors(compute, "COMPUTE");
 
@@ -126,6 +126,12 @@ class ComputeShader
         {
             glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
         }
+        //------------------------------------------------------------------------
+        void setUVec2(const std::string &name, glm::uvec2 unsignedVec) const
+        {
+        glUniform2uiv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(unsignedVec));
+
+        }
     private:
          // utility function for checking shader compilation/linking errors.
         // ------------------------------------------------------------------------
@@ -138,7 +144,7 @@ class ComputeShader
                 glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
                 if(!success)
                 {
-                    glGetShaderInfoLog(shader, 1024, NULL, infoLog);
+                    glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
                     std::cout << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
                 }
             }
@@ -147,7 +153,7 @@ class ComputeShader
                 glGetProgramiv(shader, GL_LINK_STATUS, &success);
                 if(!success)
                 {
-                    glGetProgramInfoLog(shader, 1024, NULL, infoLog);
+                    glGetProgramInfoLog(shader, 1024, nullptr, infoLog);
                     std::cout << "ERROR::PROGRAM_LINKING_ERROR of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
                 }
             }

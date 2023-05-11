@@ -41,15 +41,15 @@ void Ocean::changeResolution(unsigned int newWidth, unsigned int newHeight)
     setUpBuffers();
 }
 
-void Ocean::getResolution(unsigned int* outWidth, unsigned int* outHeight)
+void Ocean::getResolution(unsigned int& outWidth, unsigned int& outHeight)
 {
-    *outWidth = width;
-    *outHeight = height;
+    outWidth = width;
+    outHeight = height;
 
 }
 
 
-void Ocean::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix)
+void Ocean::draw(const Shader& shader, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix)
 {
 
     this->setBuffers();
@@ -88,7 +88,7 @@ bool Ocean::isLeft(glm::vec2 a, glm::vec2 b, glm::vec2 c){
 
 
 
-void Ocean::setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, glm::vec3& playerPosition, float oceanLevel)
+void Ocean::setUpVertices(const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::vec3& playerPosition, float oceanLevel)
 {
     ///TODO improve when close to near clipping plane
     /// or in practical terms when player is ~2 meters from ocean level

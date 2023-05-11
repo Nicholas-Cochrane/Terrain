@@ -22,8 +22,8 @@ class Grass
         Grass(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, unsigned int windMapInput, unsigned int grassHeightMapInput, glm::vec2 worldSizeInput , float newDensity, float newNearLOD, float newFarLOD);
         virtual ~Grass();
         void changeSettings(float newDensity, float newNearLOD, float newFarLOD);
-        void getSettings (float* outDensity, float* outNearLOD, float* outFarLOD);
-        void draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix, Camera& camera, bilinearMapReader& heightMapReader, float heightMapMax, float gameSize);
+        void getSettings (float& outDensity, float& outNearLOD, float& outFarLOD);
+        void draw(const Shader& shader, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const Camera& camera, const bilinearMapReader& heightMapReader, float heightMapMax, float gameSize);
 
         void setUpVertices(); // Create verts to pass to VBO
         void setUpBuffers(); // Create VAO/VBO and sending vertex data into different function

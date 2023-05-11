@@ -9,10 +9,9 @@ bilinearMapReader::bilinearMapReader()
 bilinearMapReader::~bilinearMapReader()
 {
     //dtor
-    delete[] MapCopyArray;
 }
 
-float bilinearMapReader::normalizedRead(float x, float y, unsigned int channelOffset)
+float bilinearMapReader::normalizedRead(float x, float y, unsigned int channelOffset) const
 {
     if(x > 0.0 && x < 1.0 &&y > 0.0 && y < 1.0 &&
         status == COMPLETE)
@@ -36,7 +35,7 @@ float bilinearMapReader::normalizedRead(float x, float y, unsigned int channelOf
     }
 }
 
-float bilinearMapReader::read(float x, float y, float gameSize , unsigned int channelOffset)
+float bilinearMapReader::read(float x, float y, float gameSize , unsigned int channelOffset) const
 {
     return this->normalizedRead((x / gameSize)+0.5, (y/ gameSize)+0.5, channelOffset);//(0,0) is Bottom left, (1,1) is top right
 }
@@ -44,21 +43,18 @@ float bilinearMapReader::read(float x, float y, float gameSize , unsigned int ch
 
 void bilinearMapReader::write(unsigned int width, unsigned int height, unsigned int textureID, GLint format, unsigned int channels)
 {
-    if(status == COMPLETE){
-        delete[] MapCopyArray;
-    }
     status = IN_PROGRESS;
-    MapCopyArray = new float[height*width*2];
+    MapCopyArray = std::make_unique<float[]>(height*width*2);
     this->height = height;
     this->width = width;
     this->channels = channels;
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textureID);
-    glGetTexImage(GL_TEXTURE_2D,0,format, GL_FLOAT, MapCopyArray);
+    glGetTexImage(GL_TEXTURE_2D,0,format, GL_FLOAT, MapCopyArray.get());
     status = COMPLETE;
 }
 
-Transfer_Status bilinearMapReader::getStatus()
+Transfer_Status bilinearMapReader::getStatus() const
 {
     return status;
 }

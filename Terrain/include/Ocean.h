@@ -21,11 +21,11 @@ class Ocean
         Ocean(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, int widthInput, int heightInput);
         virtual ~Ocean();
         void changeResolution(unsigned int newWidth, unsigned int newHeight);
-        void getResolution (unsigned int* outWidth, unsigned int* outHeight);
-        void draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix);
+        void getResolution (unsigned int& outWidth, unsigned int& outHeight);
+        void draw(const Shader& shader, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix);
         void printLineVerts();
 
-        void setUpVertices(glm::mat4& viewMatrix, glm::mat4& projectionMatrix, glm::vec3& playerPosition, float oceanLevel); // Create verts to pass to VBO
+        void setUpVertices(const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::vec3& playerPosition, float oceanLevel); // Create verts to pass to VBO
         void setUpBuffers(); // Create VAO/VBO
         void setBuffers();//spit sending vertex data into different function
 

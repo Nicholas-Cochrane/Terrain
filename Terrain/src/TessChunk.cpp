@@ -34,7 +34,7 @@ TessChunk::~TessChunk()
     glDeleteTextures(1, &texture);
 }
 
-void TessChunk::prepShader(Shader& shader)
+void TessChunk::prepShader(const Shader& shader)
 {
     shader.use();
 
@@ -45,7 +45,7 @@ void TessChunk::prepShader(Shader& shader)
 }
 
 
-void TessChunk::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix, glm::mat4& projectionMatrix2)
+void TessChunk::draw(const Shader& shader, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::mat4& projectionMatrix2)
 {
 
     glm::mat4 modelMatrix = glm::mat4(1.0f);

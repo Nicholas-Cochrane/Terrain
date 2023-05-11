@@ -109,14 +109,14 @@ void Grass::changeSettings(float newDensity, float newNearLOD, float newFarLOD)
     setUpBuffers();
 }
 
-void Grass::getSettings(float* outDensity, float* outNearLOD, float* outFarLOD)
+void Grass::getSettings(float& outDensity, float& outNearLOD, float& outFarLOD)
 {
-    *outDensity = density;
-    *outNearLOD = nearLOD;
-    *outFarLOD = farLOD;
+    outDensity = density;
+    outNearLOD = nearLOD;
+    outFarLOD = farLOD;
 }
 
-void Grass::draw(Shader& shader, glm::mat4& viewMatrix, glm::mat4& projectionMatrix, Camera& camera, bilinearMapReader& heightMapReader, float heightMapMax, float gameSize)
+void Grass::draw(const Shader& shader, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const Camera& camera, const bilinearMapReader& heightMapReader, float heightMapMax, float gameSize)
 {
     glDisable(GL_CULL_FACE);
     shader.use();

@@ -17,7 +17,7 @@ public:
     unsigned int ID;
     // constructor generates the shader on the fly
     // ------------------------------------------------------------------------
-    Shader(const char* vertexPath, const char* fragmentPath, const char* tessCtrlPath = NULL, const char* tessEvalPath = NULL)
+    Shader(const char* vertexPath, const char* fragmentPath, const char* tessCtrlPath = nullptr, const char* tessEvalPath = nullptr)
     {
         // 1. retrieve the vertex/fragment source code from filePath
         std::string vertexCode;
@@ -50,7 +50,7 @@ public:
             vertexCode   = vShaderStream.str();
             fragmentCode = fShaderStream.str();
 
-            if(tessCtrlPath != NULL && tessEvalPath != NULL){ // if shader has Tessellation shaders
+            if(tessCtrlPath != nullptr && tessEvalPath != nullptr){ // if shader has Tessellation shaders
                 // open files
                 tessCtrlFile.open(tessCtrlPath);
                 tessEvalFile.open(tessEvalPath);
@@ -72,9 +72,9 @@ public:
         }
         const char* vShaderCode = vertexCode.c_str();
         const char* fShaderCode = fragmentCode.c_str();
-        const char* tcShaderCode = NULL;
-        const char* teShaderCode = NULL;
-        if(tessCtrlPath != NULL && tessEvalPath != NULL){
+        const char* tcShaderCode = nullptr;
+        const char* teShaderCode = nullptr;
+        if(tessCtrlPath != nullptr && tessEvalPath != nullptr){
             tcShaderCode = tessCtrlCode.c_str();
             teShaderCode = tessEvalCode.c_str();
         }
@@ -83,23 +83,23 @@ public:
         unsigned int vertex, fragment, tessControl, tessEvaluation;
         // vertex shader
         vertex = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vertex, 1, &vShaderCode, NULL);
+        glShaderSource(vertex, 1, &vShaderCode, nullptr);
         glCompileShader(vertex);
         checkCompileErrors(vertex, "VERTEX");
         // fragment Shader
         fragment = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fragment, 1, &fShaderCode, NULL);
+        glShaderSource(fragment, 1, &fShaderCode, nullptr);
         glCompileShader(fragment);
         checkCompileErrors(fragment, "FRAGMENT");
         // Tessellation Shader
-        if(tessCtrlPath != NULL && tessEvalPath != NULL){
+        if(tessCtrlPath != nullptr && tessEvalPath != nullptr){
             tessControl = glCreateShader(GL_TESS_CONTROL_SHADER);
-            glShaderSource(tessControl, 1, &tcShaderCode, NULL);
+            glShaderSource(tessControl, 1, &tcShaderCode, nullptr);
             glCompileShader(tessControl);
             checkCompileErrors(tessControl, "TESSELLATION_CONTROL");
 
             tessEvaluation = glCreateShader(GL_TESS_EVALUATION_SHADER);
-            glShaderSource(tessEvaluation, 1, &teShaderCode, NULL);
+            glShaderSource(tessEvaluation, 1, &teShaderCode, nullptr);
             glCompileShader(tessEvaluation);
             checkCompileErrors(tessControl, "TESSELLATION_EVALUATION");
 
@@ -128,35 +128,59 @@ public:
     }
     // activate the shader
     // ------------------------------------------------------------------------
-    void use()
+    void use() const
     {
         glUseProgram(ID);
     }
     // utility uniform functions
     // ------------------------------------------------------------------------
-    void setBool(const std::string &name, bool value) const
+    void setBool(const std::string &name, const bool &value) const
     {
         glUniform1i(glGetUniformLocation(ID, name.c_str()), (int)value);
     }
     // ------------------------------------------------------------------------
-    void setInt(const std::string &name, int value) const
+    void setInt(const std::string &name, const int &value) const
     {
         glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
     }
     //-------------------------------------------------------------------------
-    void setUInt(const std::string &name, unsigned int value) const
+    void setUInt(const std::string &name, const unsigned int &value) const
     {
         glUniform1ui(glGetUniformLocation(ID, name.c_str()), value);
     }
     // ------------------------------------------------------------------------
-    void setFloat(const std::string &name, float value) const
+    void setFloat(const std::string &name, const float &value) const
     {
         glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
     }
     // ------------------------------------------------------------------------
-    void setMat4(const std::string &name, glm::mat4 matrix) const
+    void setMat4(const std::string &name, const glm::mat4 &matrix) const
     {
         glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(matrix));
+    }
+    //-------------------------------------------------------------------------
+    void setVec2(const std::string &name, const glm::vec2 &floatVec) const
+    {
+        glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(floatVec));
+
+    }
+    //-------------------------------------------------------------------------
+    void setVec3(const std::string &name, const glm::vec3 &floatVec) const
+    {
+        glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(floatVec));
+
+    }
+    //-------------------------------------------------------------------------
+    void setVec4(const std::string &name, const glm::vec4 &floatVec) const
+    {
+        glUniform4fv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(floatVec));
+
+    }
+    //-------------------------------------------------------------------------
+    void setUVec2(const std::string &name, const glm::uvec2 &unsignedVec) const
+    {
+        glUniform2uiv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(unsignedVec));
+
     }
 
 private:
@@ -171,7 +195,7 @@ private:
             glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
             if (!success)
             {
-                glGetShaderInfoLog(shader, 1024, NULL, infoLog);
+                glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
                 std::cout << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
             }
         }
@@ -180,7 +204,7 @@ private:
             glGetProgramiv(shader, GL_LINK_STATUS, &success);
             if (!success)
             {
-                glGetProgramInfoLog(shader, 1024, NULL, infoLog);
+                glGetProgramInfoLog(shader, 1024, nullptr, infoLog);
                 std::cout << "ERROR::PROGRAM_LINKING_ERROR of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
             }
         }

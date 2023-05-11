@@ -28,8 +28,8 @@ class TessChunk
         virtual ~TessChunk();
 
         glm::vec3 position; //position from 0,0 with chunk 0,0 being bottom,left aka SE corner
-        void prepShader(Shader& shader);
-        void draw(Shader &shader, glm::mat4 &viewMatrix, glm::mat4 &projectionMatrix, glm::mat4 &projectionMatrix2);
+        void prepShader(const Shader& shader);
+        void draw(const Shader &shader, const glm::mat4 &viewMatrix, const glm::mat4 &projectionMatrix, const glm::mat4 &projectionMatrix2);
 
 
     protected:

@@ -111,8 +111,8 @@ int main()
     int area_x, area_y, area_width, area_height;
     glfwGetMonitorWorkarea(glfwGetPrimaryMonitor(), &area_x, &area_y, &area_width, &area_height);
 
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Terrain Gen", NULL, NULL);
-    if (window == NULL)
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Terrain Gen", nullptr, nullptr);
+    if (window == nullptr)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -175,18 +175,16 @@ int main()
     // Shader compilation
     //---------------------
     Shader* tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
-    Shader* mapShader = new Shader("shaders/imgui_shader.vs", "shaders/imgui_shader.fs", NULL, NULL);
-    Shader* screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs", NULL, NULL);
+    Shader* mapShader = new Shader("shaders/imgui_shader.vs", "shaders/imgui_shader.fs");
+    Shader* screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs");
     Shader* oceanShader = new Shader("shaders/ocean_shader.vs", "shaders/ocean_shader.fs", "shaders/ocean_shader.tcs", "shaders/ocean_shader.tes");
-    Shader* grassShader = new Shader("shaders/grass_shader.vs", "shaders/grass_shader.fs", NULL, NULL);
+    Shader* grassShader = new Shader("shaders/grass_shader.vs", "shaders/grass_shader.fs");
 
     ComputeShader* imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
     ComputeShader* windGenShader = new ComputeShader("compute_shaders/wind_gen.glsl");
     ComputeShader* grassHeightGenShader = new ComputeShader("compute_shaders/grass_height_gen.glsl");
 
     glCheckError();
-    //SET DRAW MODE TO WIREFRAME
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glPointSize(10.0f);
 
     // Enable Depth buffer
@@ -249,7 +247,7 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, computeHMWidth, computeHMHeight, 0, GL_RG, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, computeHMWidth, computeHMHeight, 0, GL_RG, GL_FLOAT, nullptr);
 
 	glBindImageTexture(0, computeHightMap, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RG32F);
 
@@ -263,7 +261,7 @@ int main()
 	std::cout << "Seed:" << seed << std::endl;
 	imageGenShader->use();
 	imageGenShader->setInt("seed", seed);
-	glUniform2uiv(glGetUniformLocation(imageGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(computeHMWidth,computeHMHeight)));
+	imageGenShader->setUVec2("texRes",glm::uvec2(computeHMWidth,computeHMHeight));
     glDispatchCompute((unsigned int)computeHMWidth, (unsigned int)computeHMHeight, 1);
 
     // make sure writing to image has finished before read
@@ -282,7 +280,7 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glCheckError();
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, windMapRes, windMapRes, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, windMapRes, windMapRes, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
     glCheckError();
 	glBindImageTexture(1, windMap, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R8);
 
@@ -293,7 +291,7 @@ int main()
 	windGenShader->use();
 	windGenShader->setInt("seed", seed);
 	windGenShader->setInt("imgOutput", 1);
-	glUniform2uiv(glGetUniformLocation(windGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(windMapRes,windMapRes)));
+	windGenShader->setUVec2("texRes", glm::uvec2(windMapRes,windMapRes));
     glDispatchCompute((unsigned int)windMapRes, (unsigned int)windMapRes, 1);
     // make sure writing to image has finished before read
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -311,7 +309,7 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glCheckError();
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, grassHeightMapRes, grassHeightMapRes, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, grassHeightMapRes, grassHeightMapRes, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
     glCheckError();
 	glBindImageTexture(2, grassHeightMap, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R8);
 
@@ -322,7 +320,7 @@ int main()
 	grassHeightGenShader->use();
 	grassHeightGenShader->setInt("seed", seed);
 	grassHeightGenShader->setInt("imgOutput", 2);
-	glUniform2uiv(glGetUniformLocation(grassHeightGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(grassHeightMapRes,grassHeightMapRes)));
+	grassHeightGenShader->setUVec2("texRes", glm::uvec2(grassHeightMapRes,grassHeightMapRes));
     glDispatchCompute((unsigned int)grassHeightMapRes, (unsigned int)grassHeightMapRes, 1);
     // make sure writing to image has finished before read
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -361,7 +359,7 @@ int main()
     tessShader->setFloat("maximumTessDist", TerrainMaxTessDist);
 
     //Pass height map Variables to Camera
-    camera.passHeightMapData(&heightMapCopy, &computeHMHeight, &computeHMWidth, &Max_Height, &gameSize, &heightMapCopied);
+    camera.passHeightMapData(&heightMapCopy, computeHMHeight, computeHMWidth, Max_Height, gameSize);
 
     // create grass
     const float defaultGrassDensity = 0.35;
@@ -418,7 +416,7 @@ int main()
     unsigned int uboLowUpdateShared;
     glGenBuffers(1, &uboLowUpdateShared);
     glBindBuffer(GL_UNIFORM_BUFFER, uboLowUpdateShared);
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(LowUpdateBufferStruct), NULL, GL_STATIC_DRAW);
+    glBufferData(GL_UNIFORM_BUFFER, sizeof(LowUpdateBufferStruct), nullptr, GL_STATIC_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
     // define the range of the buffer that links to a uniform binding point
     glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboLowUpdateShared, 0, sizeof(LowUpdateBufferStruct));
@@ -459,7 +457,7 @@ int main()
     unsigned int uboFreqUpdateShared;
     glGenBuffers(1, &uboFreqUpdateShared);
     glBindBuffer(GL_UNIFORM_BUFFER, uboFreqUpdateShared);
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(FreqUpdateBufferStruct), NULL, GL_STATIC_DRAW); //todo change size
+    glBufferData(GL_UNIFORM_BUFFER, sizeof(FreqUpdateBufferStruct), nullptr, GL_STATIC_DRAW); //todo change size
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
     // define the range of the buffer that links to a uniform binding point
     glBindBufferRange(GL_UNIFORM_BUFFER, 1, uboFreqUpdateShared, 0, sizeof(FreqUpdateBufferStruct));
@@ -550,9 +548,8 @@ int main()
             screenQuadShader->setFloat("horizonAngle",horizionAngle);
             screenQuadShader->setMat4("persMatrix",projection * originView);
             screenQuadShader->setMat4("invPersMatrix", glm::inverse(originView) * glm::inverse(projection ));
-            glUniform2fv(glGetUniformLocation(screenQuadShader->ID, "depthrange"), 1, glm::value_ptr(glm::vec2(depthRangeData[0], depthRangeData[1])));
-            glUniform4fv(glGetUniformLocation(screenQuadShader->ID, "viewport"), 1, glm::value_ptr(glm::vec4(viewportData[0],viewportData[1],viewportData[2],viewportData[3])));
-            glUniform3fv(glGetUniformLocation(screenQuadShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
+            screenQuadShader->setVec2("depthrange", glm::vec2(depthRangeData[0], depthRangeData[1]));
+            screenQuadShader->setVec4("viewport", glm::vec4(viewportData[0],viewportData[1],viewportData[2],viewportData[3]));
             glBindVertexArray(screenQuadVAO);
             glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
             glBindVertexArray(0);
@@ -561,15 +558,6 @@ int main()
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
-
-            // bind textures
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, texture1);
-            //tessShader.use();
-            tessShader->use();
-            //send player position to shader
-            glUniform4fv(glGetUniformLocation(tessShader->ID, "camPos"), 1, glm::value_ptr(glm::vec4(camera.Position, 1.0f)));
-            //glCheckError();
 
             // Begin Draw
             //-----------------------------------------------------------------------
@@ -581,11 +569,6 @@ int main()
 
             //Draw Ocean
             oceanObj.setUpVertices(YCorrectedOriginView, projection, camera.Position, 0);
-
-            oceanShader->use();
-            oceanShader->setFloat("time", static_cast<float>(currentFrame));///TODO fix potential problems with lack of precision with floats
-            glUniform3fv(glGetUniformLocation(oceanShader->ID, "playerPos"),1, glm::value_ptr(camera.Position));
-            glUniform3fv(glGetUniformLocation(oceanShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
             oceanObj.draw(*oceanShader, YCorrectedOriginView, projection);
 
             //Draw Grass
@@ -656,7 +639,7 @@ int main()
                 ImGui::Image((void*)(intptr_t)grassHeightMap, ImVec2(400, 400), ImVec2(0.0f,1.0f),ImVec2(1.0f,0.0f));
             ImGui::End();
 
-            ImGui::Begin("Debug", NULL, ImGuiWindowFlags_NoScrollbar);
+            ImGui::Begin("Debug", nullptr, ImGuiWindowFlags_NoScrollbar);
                 if (ImGui::Button("Reload Tess Shader")){
                     delete tessShader;
                     tessShader = new Shader("shaders/tess_chunk_vert.vs", "shaders/tess_chunk_frag.fs", "shaders/tess_chunk.tcs", "shaders/tess_chunk.tes");
@@ -672,7 +655,7 @@ int main()
                 }
                 if (ImGui::Button("Reload Sky Shader")){
                     delete screenQuadShader;
-                    screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs", NULL, NULL);
+                    screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs", nullptr, nullptr);
                     screenQuadShader->use();
                     unsigned int UBISkyShaderFUS = glGetUniformBlockIndex(screenQuadShader->ID, "freqUpdateShared");
                     // link each shader's uniform block to this uniform binding point
@@ -691,9 +674,8 @@ int main()
                 }
                 if (ImGui::Button("Reload Grass Shader")){
                     delete grassShader;
-                    grassShader = new Shader("shaders/grass_shader.vs", "shaders/grass_shader.fs", NULL, NULL);
+                    grassShader = new Shader("shaders/grass_shader.vs", "shaders/grass_shader.fs", nullptr, nullptr);
                     grassShader->use();
-                    glUniform3fv(glGetUniformLocation(grassShader->ID, "sunDirection"), 1, glm::value_ptr(sunDirection));
                     unsigned int UBIGrassShaderLUS = glGetUniformBlockIndex(grassShader->ID, "lowUpdateShared");
                      unsigned int UBIGrassShaderFUS = glGetUniformBlockIndex(grassShader->ID, "freqUpdateShared");
                     // link each shader's uniform block to this uniform binding point
@@ -707,7 +689,7 @@ int main()
                     //Set uniforms
                     imageGenShader->use();
                     imageGenShader->setInt("seed", seed);
-                    glUniform2uiv(glGetUniformLocation(imageGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(computeHMWidth,computeHMHeight)));
+                    imageGenShader->setUVec2("texRes",glm::uvec2(computeHMWidth,computeHMHeight));
                     glDispatchCompute((unsigned int)computeHMWidth, (unsigned int)computeHMHeight, 1);
 
                     heightMapCopied = NOT_STARTED; //Recopy height map to RAM
@@ -724,7 +706,7 @@ int main()
                     windGenShader->use();
                     windGenShader->setInt("seed", seed);
                     windGenShader->setInt("imgOutput", 1);
-                    glUniform2uiv(glGetUniformLocation(windGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(windMapRes,windMapRes)));
+                    windGenShader->setUVec2("texRes", glm::uvec2(windMapRes,windMapRes));
                     glDispatchCompute((unsigned int)windMapRes, (unsigned int)windMapRes, 1);
 
                     // make sure writing to image has finished before read
@@ -739,7 +721,7 @@ int main()
                     grassHeightGenShader->use();
                     grassHeightGenShader->setInt("seed", seed);
                     grassHeightGenShader->setInt("imgOutput", 2);
-                    glUniform2uiv(glGetUniformLocation(grassHeightGenShader->ID, "texRes"), 1, glm::value_ptr(glm::uvec2(grassHeightMapRes,grassHeightMapRes)));
+                    grassHeightGenShader->setUVec2("texRes", glm::uvec2(grassHeightMapRes,grassHeightMapRes));
                     glDispatchCompute((unsigned int)grassHeightMapRes, (unsigned int)grassHeightMapRes, 1);
 
                     // make sure writing to image has finished before read
@@ -863,14 +845,14 @@ int main()
                     static float terrainMaxDisplay = TerrainMaxTessDist;
                     if(ImGui::Button("Clear All to Current Value")){
                         //ocean Super Resolution
-                        oceanObj.getResolution(&oceanResWidth,&oceanResHeight);
+                        oceanObj.getResolution(oceanResWidth,oceanResHeight);
                         //Ocean Tessellation
                         oceanTessDisplay = oceanTessLevel;
                         //Terrain Tessellation
                         terrainMinDisplay = TerrainMinTessDist;
                         terrainMaxDisplay = TerrainMaxTessDist;
                         //Grass
-                        grassObj.getSettings(&displayGrassDensity, &displayGrassNear, &displayGrassFar);
+                        grassObj.getSettings(displayGrassDensity, displayGrassNear, displayGrassFar);
                     }
                     if(ImGui::Button("Reset All to Default")){
                         //ocean Super Resolution
@@ -1039,7 +1021,7 @@ int main()
 
             ImGui::SetNextWindowSizeConstraints(ImVec2(168,264), ImVec2(FLT_MAX,FLT_MAX));
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,0.0));
-            ImGui::Begin("Map", NULL, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+            ImGui::Begin("Map", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
                 ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
                 // Toggles for color channel filter
@@ -1150,7 +1132,7 @@ int main()
                         arguments->shaderPtr->setFloat("heightScale", arguments->heightScale);
                         arguments->shaderPtr->setBool("alphaOnly", arguments->alphaOnly);
                         arguments->shaderPtr->setBool("showMap", arguments->showMap);
-                        glUniform4fv(glGetUniformLocation(arguments->shaderPtr->ID, "channels"), 1, glm::value_ptr(arguments->channels));
+                        arguments->shaderPtr->setVec4("channels", arguments->channels);
                         glUniformMatrix4fv(glGetUniformLocation(arguments->shaderPtr->ID, "ProjMtx"), 1, GL_FALSE, &ortho_projection[0][0]);
                     }, (void*)callback_Args_Ptr);
 
@@ -1217,7 +1199,7 @@ int main()
     //---------------
     for(unsigned int i = 0; i < chunkList.size(); i++){
         delete chunkList.at(i);
-        chunkList.at(i) = NULL;
+        chunkList.at(i) = nullptr;
     }
 
     glDeleteVertexArrays(1, &screenQuadVAO);
