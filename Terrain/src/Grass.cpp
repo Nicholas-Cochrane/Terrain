@@ -68,7 +68,7 @@ Grass::Grass(unsigned int heightMapInput,  glm::uvec2 heightMapUVsizeInput, unsi
     farVBOclear = true;
     instanceVBOclear = true;
 
-    chunksPerLine = farLOD/5;
+    chunksPerLine = farLOD/5; ///TODO assert to avoid rounding errors (1 of 2)
     totalChunks = chunksPerLine*chunksPerLine;
     chunkSize = (farLOD*2)/chunksPerLine;
     vertsPerChunkLine = std::round(chunkSize/density);
@@ -100,7 +100,7 @@ void Grass::changeSettings(float newDensity, float newNearLOD, float newFarLOD)
     nearLOD = newNearLOD;
     farLOD = newFarLOD;
 
-    chunksPerLine = farLOD/5;
+    chunksPerLine = farLOD/5; ///TODO assert to avoid rounding error (2 of 2)
     totalChunks = chunksPerLine*chunksPerLine;
     chunkSize = (farLOD*2)/chunksPerLine;
     vertsPerChunkLine = std::round(chunkSize/density);
@@ -245,8 +245,8 @@ void Grass::setUpVertices()
                     float y = ((chunkY*chunkSize)-farLOD) + (chunkSize/vertsPerChunkLine)*vertY;
                     float x = ((chunkX*chunkSize)-farLOD) + (chunkSize/vertsPerChunkLine)*vertX;
                     glm::uvec3 hashVec = pcg3d(glm::uvec3((unsigned int) (y*(vertsPerChunkLine/chunkSize)), (unsigned int) (x*(vertsPerChunkLine/chunkSize)), 7632978u));
-                    float hashx = ((static_cast<float>(hashVec.x)/UINT_MAX) - 0.5)* 2;
-                    float hashy = ((static_cast<float>(hashVec.y)/UINT_MAX) - 0.5) * 2;
+                    float hashx = ((static_cast<float>(hashVec.x)/UINT_MAX) - 0.5f)* 2.0f;
+                    float hashy = ((static_cast<float>(hashVec.y)/UINT_MAX) - 0.5f) * 2.0f;
                     offsetVertices.push_back(glm::vec2(x + (hashx * (chunkSize/vertsPerChunkLine)),y + (hashy * (chunkSize/vertsPerChunkLine))));
                 }
             }

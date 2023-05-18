@@ -145,9 +145,9 @@ void Ocean::setUpVertices(const glm::mat4& viewMatrix, const glm::mat4& projecti
 
     //bottom of screen to top of screen
     for(unsigned int y = 0; y <= height; y++){
-        float clipY = (y/static_cast<float>(height))*2 - 1;
+        float clipY = (y/static_cast<float>(height))*2.0f - 1.0f;
         for(unsigned int x = 0; x <= width; x++){
-            float clipX = (x/static_cast<float>(width))*2 - 1;
+            float clipX = (x/static_cast<float>(width))*2.0f - 1.0f;
             //close left
             temp = inv * glm::vec4(clipX,clipY,0,1);
             temp /= temp.w;
@@ -183,7 +183,7 @@ void Ocean::setUpVertices(const glm::mat4& viewMatrix, const glm::mat4& projecti
             }else{ // if the majority passed fix the non passing verts by forcing them to pass
                 std::vector<glm::vec3> fixedLine;
                 fixedLine.resize(width+1);
-                float clipY = (y/static_cast<float>(height))*2 - 1;
+                float clipY = (y/static_cast<float>(height))*2.0f - 1.0f;
                 for(int i = width; i >= 0; i--){
                     if(currLine.at(i) == true){
                         //if vert passed then take it from lineVerts
@@ -191,7 +191,7 @@ void Ocean::setUpVertices(const glm::mat4& viewMatrix, const glm::mat4& projecti
                         lineVerts.pop_back();
                     }else{
                         //if vert failed, generate it
-                        float clipX = (i/static_cast<float>(width))*2 - 1;
+                        float clipX = (i/static_cast<float>(width))*2.0f - 1.0f;
                         //close left
                         temp = inv * glm::vec4(clipX,clipY,0,1);
                         temp /= temp.w;

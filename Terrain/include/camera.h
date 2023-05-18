@@ -86,7 +86,7 @@ public:
         return glm::lookAt(glm::vec3(0,Position.y,0), glm::vec3(0,Position.y,0) + Front, Up);
     }
 
-    void passHeightMapData(bilinearMapReader *heightMapPtr, unsigned int& height, unsigned int& width, const int& maxHeight, const float& inGameSize){
+    void passHeightMapData(bilinearMapReader *heightMapPtr, unsigned int& height, unsigned int& width, const float& maxHeight, const float& inGameSize){
         heightMapReader = heightMapPtr;
         heightMapHeight = height;
         heightMapWidth = width;
@@ -120,7 +120,7 @@ public:
         }
 
         if(!fly && !std::isinf(Elevation)){
-            Position.y = Elevation + 1.7;
+            Position.y = Elevation + 1.7f;
         }
     }
 
@@ -159,7 +159,7 @@ public:
 private:
     unsigned int heightMapHeight;
     unsigned int heightMapWidth;
-    int heightMapMaxHeight;
+    float heightMapMaxHeight;
     float gameSize;
     bilinearMapReader* heightMapReader;
 

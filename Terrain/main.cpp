@@ -32,6 +32,7 @@
 #include "include/Ocean.h"
 #include "include/Grass.h"
 #include "include/bilinearMapReader.h"
+#include "include/TreeMaker.h"
 #define GLFW_DLL
 
 //Function Delectations
@@ -179,6 +180,7 @@ int main()
     Shader* screenQuadShader = new Shader("shaders/sky_shader.vs", "shaders/sky_shader.fs");
     Shader* oceanShader = new Shader("shaders/ocean_shader.vs", "shaders/ocean_shader.fs", "shaders/ocean_shader.tcs", "shaders/ocean_shader.tes");
     Shader* grassShader = new Shader("shaders/grass_shader.vs", "shaders/grass_shader.fs");
+    Shader* treeShader = new Shader("shaders/tree_shader.vs", "shaders/tree_shader.fs");
 
     ComputeShader* imageGenShader = new ComputeShader("compute_shaders/image_gen.glsl");
     ComputeShader* windGenShader = new ComputeShader("compute_shaders/wind_gen.glsl");
@@ -331,14 +333,14 @@ int main()
     //--------------------------------------------------------------------------
     //create chunks
     std::vector<TessChunk*> chunkList;
-    const int Max_Height = 1400;// height of brightest pixel in texture
+    const float Max_Height = 1400.0f;// height of brightest pixel in texture
     const int Patchs_Per_Edge = 50;
     const int Divisions = 400/Patchs_Per_Edge; // 800 is 51200
     const float Chunk_Width = 64.0f*Patchs_Per_Edge;
     const float gameSize = (Divisions * Chunk_Width);//length of map in units
     for(int x = 0; x < Divisions; x++){
         for(int z = 0; z < Divisions; z++){// note: -z is forward in coord space
-            chunkList.push_back(new TessChunk(glm::vec3((x * Chunk_Width)-(gameSize/2) ,0.0f,(-z * Chunk_Width)+(gameSize/2)) // root of chunk (0,0) with x+ and z-
+            chunkList.push_back(new TessChunk(glm::vec3((x * Chunk_Width)-(gameSize/2.0f) ,0.0f,(-z * Chunk_Width)+(gameSize/2.0f)) // root of chunk (0,0) with x+ and z-
                                               , Chunk_Width / Patchs_Per_Edge //width of each patch
                                               , Patchs_Per_Edge // number of patches per edge
                                               , texture1, computeHightMap // texture and height map texture
@@ -348,8 +350,8 @@ int main()
     }
 
     // Settings for use in graphics window
-    const float defaultTerrainMinTessDist = 64.0;
-    const float defaultTerrainMaxTessDist = 1000.0;
+    const float defaultTerrainMinTessDist = 64.0f;
+    const float defaultTerrainMaxTessDist = 1000.0f;
     float TerrainMinTessDist = defaultTerrainMinTessDist;
     float TerrainMaxTessDist = defaultTerrainMaxTessDist;
 
@@ -362,9 +364,9 @@ int main()
     camera.passHeightMapData(&heightMapCopy, computeHMHeight, computeHMWidth, Max_Height, gameSize);
 
     // create grass
-    const float defaultGrassDensity = 0.35;
-    const float defaultGrassNear = 20;
-    const float defaultGrassFar = 240;
+    const float defaultGrassDensity = 0.35f;
+    const float defaultGrassNear = 20.0f;
+    const float defaultGrassFar = 240.0f;
     float displayGrassDensity = defaultGrassDensity;
     float displayGrassNear = defaultGrassNear;
     float displayGrassFar = defaultGrassFar;
@@ -387,6 +389,10 @@ int main()
     oceanShader->use();
     oceanShader->setUInt("tessellationLevel",oceanTessLevel);
 
+    //create tree Manager
+    TreeMaker treeObj;
+    treeObj.createNewTree();
+
     // configure a uniform buffer object
     // -------------------------------------------------------------------------------
     struct LowUpdateBufferStruct{
@@ -400,7 +406,7 @@ int main()
     LowUpdateBufferStruct lowUpdateBufferData;
     lowUpdateBufferData.heightScale = Max_Height;
     lowUpdateBufferData.worldSize = gameSize;
-    lowUpdateBufferData.uTexelSize = 1.0/computeHMWidth;
+    lowUpdateBufferData.uTexelSize = 1.0f/computeHMWidth;
     lowUpdateBufferData.nearPlane = nearPlane;
     lowUpdateBufferData.farPlane = farPlane;
 
@@ -424,7 +430,6 @@ int main()
     glBindBuffer(GL_UNIFORM_BUFFER, uboLowUpdateShared);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(LowUpdateBufferStruct), &lowUpdateBufferData);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
 
     //freqUpdateShared
     struct FreqUpdateBufferStruct{
@@ -510,7 +515,7 @@ int main()
         { // if window is minimized do not render (Rendering while at resolution 0x0 cause glm::matix_clip_space.inl assertion to fail)
             //glCheckError();
             //glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
-            glClearColor(0.207f, 0.318f, 0.361, 1.0f);
+            glClearColor(0.207f, 0.318f, 0.361f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             //get view port info [x, y, width, height]
@@ -544,7 +549,7 @@ int main()
             //TODO: try stencil mask
             glDepthMask(GL_FALSE);
             screenQuadShader->use();
-            float horizionAngle = sqrt((2*camera.Position.y)/(6371000.0/(1-0.13)));
+            float horizionAngle = sqrt((2.0f*camera.Position.y)/(6371000.0f/(1.0f-0.13f)));
             screenQuadShader->setFloat("horizonAngle",horizionAngle);
             screenQuadShader->setMat4("persMatrix",projection * originView);
             screenQuadShader->setMat4("invPersMatrix", glm::inverse(originView) * glm::inverse(projection ));
@@ -575,7 +580,8 @@ int main()
             grassObj.draw(*grassShader, view, projection, camera, heightMapCopy, Max_Height, gameSize);
             //glCheckError();
 
-
+            //Draw Trees
+            treeObj.drawTree(*treeShader, view, projection, 0, glm::vec3(0.0f, 500.0f,-5.0f));
 
             //Create ImGui windows
             //--------------------------------------------------------
@@ -754,13 +760,13 @@ int main()
 
                     ImGui::SliderFloat("Days:", &Nint, 0.0f, 365.0f, "%.0f");
                     ImGui::SliderFloat("HourAngle:", &hourAngle, -180.0f, 180.0f, "%.7f");
-                    ImGui::SliderFloat("Latitude:", &latitude, -90.0f+0.00001, 90.0f-0.00001, "%.5f"); // Math breaks down if exactly on poles
+                    ImGui::SliderFloat("Latitude:", &latitude, -90.0f+0.00001f, 90.0f-0.00001f, "%.5f"); // Math breaks down if exactly on poles
 
-                    float Nfract = hourAngle/180.0 * 0.5;
-                    float minutes = (hourAngle + 180)/15;
+                    float Nfract = hourAngle/180.0f * 0.5f;
+                    float minutes = (hourAngle + 180.0f)/15.0f;
                     float hour;
                     minutes = std::modf(minutes, &hour);
-                    minutes *= 60;
+                    minutes *= 60.0f;
                     std::modf(minutes, &minutes);
                     std::string minuteString = std::to_string(static_cast<int>(minutes));
                     if(minuteString.size() < 2){minuteString = "0" + minuteString;} // add leading 0
@@ -779,7 +785,7 @@ int main()
                     L += static_cast<int>(intComponent)%360;
 
                     double a = std::sin(g * (M_PI/180.0d));//calculate sin in degrees
-                    double b = std::sin(2*g * (M_PI/180.0d));
+                    double b = std::sin(2.0d*g * (M_PI/180.0d));
                     double eclipticLongitude = L + 1.915d*a + 0.020d*b;
 
                     double Ecliptic = (23.439 - 0.00000036*N)*(M_PI/180.0d);
@@ -972,10 +978,10 @@ int main()
                     ImGui::DragScalar("##terrainTessMzn", ImGuiDataType_Float, &terrainMaxDisplay, 1.0, &terrainMinDisplay, &terrainTessUpper, "%.0f", ImGuiSliderFlags_AlwaysClamp);
 
 
-                    const float grassLower = 0.0;
+                    const float grassLower = 0.0f;
                     const float grassUpper = farPlane;
-                    const float grassDensityLower = 0.1;
-                    const float grassDensityUpper = 2.0;
+                    const float grassDensityLower = 0.1f;
+                    const float grassDensityUpper = 2.0f;
 
                     ImGui::Text("Grass Render Distance:");
                     ImGui::SameLine();
@@ -1103,13 +1109,13 @@ int main()
                 callback_Args_Ptr = &callback_Args; // set struct pointer to point to a struct
                 //set up arguments to be passed to callback function
                 callback_Args.shaderPtr = mapShader;
-                callback_Args.uTexelSize = 1.0/computeHMWidth;
+                callback_Args.uTexelSize = 1.0f/computeHMWidth;
                 callback_Args.heightScale = Max_Height;
                 callback_Args.channels = glm::vec4(redChannel, greenChannel, blueChannel, alphaChannel);
                 callback_Args.alphaOnly = alphaOnly;
                 callback_Args.showMap = showMap;
 
-                draw_list->AddCallback([](const ImDrawList* parent_list, const ImDrawCmd* cmd)
+                draw_list->AddCallback([]( [[maybe_unused]] const ImDrawList* parent_list, const ImDrawCmd* cmd)
                     {
                         mapCallbackArguments* arguments = (mapCallbackArguments*)cmd->UserCallbackData; // retrieve arguments from callback
 
@@ -1223,7 +1229,7 @@ void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
         camera.ProcessKeyboard(BACKWARD, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, deltaTime);;
+        camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
 
@@ -1264,7 +1270,7 @@ void processInput(GLFWwindow *window)
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 // ---------------------------------------------------------------------------------------------
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+void framebuffer_size_callback([[maybe_unused]] GLFWwindow* window, int width, int height)
 {
     // make sure the viewport matches the new window dimensions; note that width and
     glViewport(0, 0, width, height);
@@ -1272,7 +1278,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 // glfw: whenever the mouse moves, this callback is called
 // -------------------------------------------------------
-void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
+void mouse_callback([[maybe_unused]] GLFWwindow* window, double xposIn, double yposIn)
 {
     if(captureMouse){ // only run if mouse is being t (ImGui does this in it's own func for menues)
         float xpos = static_cast<float>(xposIn);
@@ -1297,7 +1303,7 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+void scroll_callback([[maybe_unused]] GLFWwindow* window, [[maybe_unused]] double xoffset, double yoffset)
 {
     if(!ImGui::GetIO().WantCaptureMouse){
         camera.ProcessMouseScroll(static_cast<float>(yoffset));
