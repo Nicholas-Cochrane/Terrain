@@ -114,4 +114,5 @@ void main()
 	vec3 fogColor = vec3(0.788f,0.906f,1.0f);
     //FragColor = vec4(vec3(depth), 1.0);
 	FragColor = vec4(mix(fogColor,((col.rgb * 0.05) + diff) * col.rgb, fogFactor),1.0);
+	//FragColor = vec4(normal, 1.0f);
 }

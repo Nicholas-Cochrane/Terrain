@@ -231,7 +231,7 @@ int main()
 
     // Texture setup and loading
     //---------------------------
-    unsigned int texture1 = loadTexture("textures/uv.png", GL_RGB);
+    unsigned int texture1 = loadTexture("textures/wrapTest.png", GL_RGB, GL_CLAMP_TO_EDGE);
     //unsigned int heightMap = loadTexture("textures/0.01344305976942091 (4130) (110km) square.png", GL_RGBA, GL_CLAMP_TO_EDGE);
     unsigned int playerIcon = loadTexture("textures/map arrow.png", GL_RGBA, GL_CLAMP_TO_EDGE);
 
@@ -581,7 +581,7 @@ int main()
             //glCheckError();
 
             //Draw Trees
-            treeObj.drawTree(*treeShader, view, projection, 0, glm::vec3(0.0f, 500.0f,-5.0f));
+            treeObj.drawTree(*treeShader, view, projection, 0, glm::vec3(0.0f, 500.0f,-5.0f), texture1);
 
             //Create ImGui windows
             //--------------------------------------------------------

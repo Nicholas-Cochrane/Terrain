@@ -16,10 +16,11 @@
 #include <vector>
 namespace Trees{
     struct Vertex {
-        Vertex(glm::vec3 inPos, glm::vec2 inTex) : posCoords(inPos), texCoords(inTex) {};
+        Vertex(glm::vec3 inPos, glm::vec2 inTex, glm::vec3 inNorm) : posCoords(inPos), texCoords(inTex), normCoords(inNorm) {};
         Vertex() = default;
         glm::vec3 posCoords;
         glm::vec2 texCoords;
+        glm::vec3 normCoords;
     };
 
     struct treeNode{
@@ -51,13 +52,14 @@ class TreeMaker
         //treeModel createNewTree();
         std::vector<treeModel> treeList;
 
-        void drawTree(const Shader &shader, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const int treeIndex, const glm::vec3 position);
+        void drawTree(const Shader &shader, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const int treeIndex, const glm::vec3 position, unsigned int textureID);
         void drawTreeColliders(const Shader &shader, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const int treeIndex, const glm::vec3 position);
 
     protected:
 
     private:
         void createTreeMesh(treeModel &newTree);
+        glm::mat3 rotateToVec(const glm::vec3 target);
 };
 
 #endif // TREEMAKER_H
