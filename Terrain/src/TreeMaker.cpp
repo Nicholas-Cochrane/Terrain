@@ -54,77 +54,119 @@ glm::mat3 TreeMaker::rotateToVec(const glm::vec3 target)
 
 void TreeMaker::createTreeMesh(treeModel& newTree)
 {
-    treeNode currNode = newTree.branchTree.at(0);
-    std::vector<Vertex> currRing;
+    std::size_t currNodeIndex(0);
+    treeNode &rootNode = newTree.branchTree.at(currNodeIndex);
+    std::vector<std::vector<Vertex>> rings;
+    rings.resize(newTree.branchTree.size());
+    std::vector<Vertex> &rootRing = rings.at(currNodeIndex);
     unsigned int points = 20; ///TODO ADD LOGIC
-    float angle = (M_PI*2.0f)/points; // in radians
+    float angle = (M_PI*2.0f)/static_cast<float>(points); // in radians
     glm::vec3 groundSpike{0.0f, 1.0f, 0.0f}; // spike into ground to hide possible floating on hills
     Vertex groundSpikeVertex(glm::vec3(0.0f, -1.0f, 0.0f), glm::vec2(-1.0f, 0.5f), glm::normalize(glm::vec3(0.0f, -1.0f, 0.0f)));
 
     //push first point
-    currRing.push_back(Vertex(glm::vec3(currNode.radius * std::sin(0.0f), 0.0f, currNode.radius * std::cos(0.0f)), // position
-                       glm::vec2(0.0f, 0.0f), //texture
-                       glm::normalize(glm::vec3((currNode.radius+1.0f) * std::sin(0.0f), 0.0f, (currNode.radius+1.0f) * std::cos(0.0f)) - glm::vec3(currNode.radius * std::sin(0.0f), 0.0f, currNode.radius * std::cos(0.0f))))); // normal
+    rootRing.push_back(Vertex(
+                            glm::vec3(rootNode.radius * std::sin(0.0f), 0.0f, rootNode.radius * std::cos(0.0f)), // position
+                            glm::vec2(0.0f, 0.0f), //texture
+                            glm::normalize(glm::vec3((rootNode.radius+1.0f) * std::sin(0.0f), 0.0f, (rootNode.radius+1.0f) * std::cos(0.0f)) - glm::vec3(rootNode.radius * std::sin(0.0f), 0.0f, rootNode.radius * std::cos(0.0f))))); // normal
 
-    for(unsigned int i = 1; i < points; i++){
-        currRing.push_back(Vertex(glm::vec3(currNode.radius * std::sin(angle * i), 0.0f, currNode.radius * std::cos(angle * i)),
-                           glm::vec2(0.0f, 1.0f/points * i),
-                           glm::normalize(glm::vec3((currNode.radius+1.0f) * std::sin(angle * i), 0.0f, (currNode.radius+1.0f) * std::cos(angle * i))- glm::vec3(currNode.radius * std::sin(angle * i), 0.0f, currNode.radius * std::cos(angle * i)))));
-        // create end cap/spike (clockwise order)
-        //printf("new: %.3f, %.3f, %.3f \n",currRing.back().posCoords.x, currRing.back().posCoords.y, currRing.back().posCoords.z);
-        newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-2)); // previous point
+    for(float fPoint = 1.0f; fPoint < static_cast<float>(points); fPoint += 1.0f){
+        rootRing.push_back(Vertex(
+                                glm::vec3(rootNode.radius * std::sin(angle * fPoint), 0.0f, rootNode.radius * std::cos(angle * fPoint)), //position
+                                glm::vec2(0.0f, 1.0f/static_cast<float>(points) * fPoint),  //texture
+                                glm::normalize( //normal
+                                               glm::vec3((rootNode.radius+1.0f) * std::sin(angle * fPoint), 0.0f, (rootNode.radius+1.0f) * std::cos(angle * fPoint))
+                                               - glm::vec3(rootNode.radius * std::sin(angle * fPoint), 0.0f, rootNode.radius * std::cos(angle * fPoint)))));
+
+        // create ground end cap/spike (clockwise order)
+        newTree.modelHighLODVerts.push_back(rootRing.at(rootRing.size()-2)); // previous point
         newTree.modelHighLODVerts.push_back(groundSpikeVertex);
-        newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-1)); // current point
+        newTree.modelHighLODVerts.push_back(rootRing.at(rootRing.size()-1)); // current point
     }
-    newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-1)); // previous point
+    newTree.modelHighLODVerts.push_back(rootRing.at(rootRing.size()-1)); // previous point
     newTree.modelHighLODVerts.push_back(groundSpikeVertex);
-    newTree.modelHighLODVerts.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(0.0f,1.0f), currRing.at(0).normCoords)); // back to start
+    newTree.modelHighLODVerts.push_back(Vertex(rootRing.at(0).posCoords, glm::vec2(0.0f,1.0f), rootRing.at(0).normCoords)); // back to start
 
 
-    if(currNode.children.empty()){
-        throw std::invalid_argument( "TreeModel had no children"); // if only root node, then no tree
+    if(rootNode.children.empty()){
+        throw std::invalid_argument( "TreeModel root had no children"); // if only root node, then no tree
 
-    }else if(currNode.children.size() == 1){
-        std::vector<Vertex> lastRing = currRing;
-        currRing.clear();
-        treeNode lastNode = currNode;
-        currNode = newTree.branchTree.at(currNode.children.front());
+    }else if(rootNode.children.size() == 1){
+        std::vector<Vertex> &lastRing = rings.at(currNodeIndex);
+        treeNode &lastNode = newTree.branchTree.at(currNodeIndex);
 
-        //first ring point
+        currNodeIndex = lastNode.children.front();
+        std::vector<Vertex> &currRing = rings.at(currNodeIndex);
+        treeNode &currNode = newTree.branchTree.at(currNodeIndex);
+
+        //First ring point [0]
         glm::mat3 rotationMatrix = rotateToVec(lastNode.nodeCoords-currNode.nodeCoords);
         glm::vec3 ringPoint = (glm::vec3(currNode.radius * std::sin(0.0f), 0.0f, currNode.radius * std::cos(0.0f)) + currNode.nodeCoords) * rotationMatrix;
+        //Expand ring by one unit to find normal vector;
         glm::vec3 ringPointExpanded = (glm::vec3((currNode.radius+1.0f) * std::sin(0.0f), 0.0f, (currNode.radius+1.0f) * std::cos(0.0f)) + currNode.nodeCoords) * rotationMatrix;
-        currRing.push_back(Vertex(ringPoint,
-                           glm::vec2(1.0f, 0),
-                           glm::normalize(ringPointExpanded-ringPoint)));
+        currRing.push_back(Vertex(
+                                ringPoint,                                      //Position
+                                glm::vec2(1.0f, 0),                             //Texture
+                                glm::normalize(ringPointExpanded-ringPoint)));  //Normal
 
-        for(unsigned int i = 1; i < points; i++){
-
+        //Second point [1] to final point [n-1]
+        for(float fPoint = 1.0f; fPoint < static_cast<float>(points); fPoint += 1.0f){
             glm::mat3 rotationMatrix = rotateToVec(lastNode.nodeCoords-currNode.nodeCoords);
-            glm::vec3 ringPoint = (glm::vec3(currNode.radius * std::sin(angle * i), 0.0f, currNode.radius * std::cos(angle * i)) + currNode.nodeCoords) * rotationMatrix;
-            glm::vec3 ringPointExpanded = (glm::vec3((currNode.radius+1.0f) * std::sin(angle * i), 0.0f, (currNode.radius+1.0f) * std::cos(angle * i)) + currNode.nodeCoords) * rotationMatrix;
-            currRing.push_back(Vertex( ringPoint,
-                               glm::vec2(1.0f, 1.0f/points * i),
-                               glm::normalize(ringPointExpanded-ringPoint)));
+            glm::vec3 ringPoint = (glm::vec3(currNode.radius * std::sin(angle * fPoint), 0.0f, currNode.radius * std::cos(angle * fPoint)) + currNode.nodeCoords) * rotationMatrix;
+            //Expand ring by one unit to find normal vector;
+            glm::vec3 ringPointExpanded = (glm::vec3((currNode.radius+1.0f) * std::sin(angle * fPoint), 0.0f, (currNode.radius+1.0f) * std::cos(angle * fPoint)) + currNode.nodeCoords) * rotationMatrix;
+            currRing.push_back(Vertex(
+                                    ringPoint,                                                  //Position
+                                    glm::vec2(1.0f, 1.0f/static_cast<float>(points) * fPoint),  //Texture
+                                    glm::normalize(ringPointExpanded-ringPoint)));              //Normal
 
-            // create end cap/spike (clockwise order)
-            //printf("new: %.3f, %.3f, %.3f \n",currRing.back().posCoords.x, currRing.back().posCoords.y, currRing.back().posCoords.z);
-            newTree.modelHighLODVerts.push_back(currRing.at(i-1)); // previous point
-            newTree.modelHighLODVerts.push_back(lastRing.at(i-1)); // corresponding point on last ring
-            newTree.modelHighLODVerts.push_back(currRing.at(i)); // current point
-
-            newTree.modelHighLODVerts.push_back(currRing.at(i)); // current point
-            newTree.modelHighLODVerts.push_back(lastRing.at(i-1)); // prev point on last ring
-            newTree.modelHighLODVerts.push_back(lastRing.at(i)); // corresponding point on last ring
         }
-        newTree.modelHighLODVerts.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,1.0f), currRing.at(0).normCoords)); // start
-        newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-1)); // current point
-        newTree.modelHighLODVerts.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(0.0f,1.0f), lastRing.at(0).normCoords)); // start point on last ring
+
+        //Create mesh from rings (clockwise order)
+        if(currRing.size() != lastRing.size()){
+            if(currRing.size() > lastRing.size()){
+                std::size_t quotient = currRing.size()/lastRing.size();
+                std::vector<std::size_t> numberOfTris(lastRing.size(), quotient); //lastRing(smaller ring) --> currRing(bigger ring)
+                std::size_t unallocatedTris = currRing.size() - (lastRing.size()*quotient);
+
+                std::size_t gapSize = currRing.size()/unallocatedTris;
+                float gapFloat= static_cast<float>(currRing.size())/static_cast<float>(unallocatedTris);
+                std::size_t i = 0;
+                while(i < currRing.size() && unallocatedTris > 0){
+                    if((static_cast<float>(currRing.size()-i)/static_cast<float>(unallocatedTris)) > gapFloat){
+                        i +=1;
+                    }
+                    numberOfTris.at(i) += 1;
+                    i += gapSize;
+                    unallocatedTris--;
+                }
+
+                ///TODO make non equal mesh lastRing --> currRing
+            }else{
+                ///TODO currRing --> lastRing
+                ///TODO make non equal mesh currRing --> lastRing
+            }
+
+        }else{
+            // each point in the current ring corresponds to a point in the last ring
+            for(std::size_t i = 1; i < currRing.size(); i++){
+                newTree.modelHighLODVerts.push_back(currRing.at(i-1)); // previous point
+                newTree.modelHighLODVerts.push_back(lastRing.at(i-1)); // corresponding point on last ring
+                newTree.modelHighLODVerts.push_back(currRing.at(i)); // current point
+
+                newTree.modelHighLODVerts.push_back(currRing.at(i)); // current point
+                newTree.modelHighLODVerts.push_back(lastRing.at(i-1)); // prev point on last ring
+                newTree.modelHighLODVerts.push_back(lastRing.at(i)); // corresponding point on last ring
+            }
+            newTree.modelHighLODVerts.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,1.0f), currRing.at(0).normCoords)); // start
+            newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-1)); // current point
+            newTree.modelHighLODVerts.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(0.0f,1.0f), lastRing.at(0).normCoords)); // start point on last ring
 
 
-        newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-1)); // current point
-        newTree.modelHighLODVerts.push_back(lastRing.at(lastRing.size()-1)); // corresponding point on last ring
-        newTree.modelHighLODVerts.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(0.0f,1.0f), lastRing.at(0).normCoords)); // start on last ring
+            newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-1)); // current point
+            newTree.modelHighLODVerts.push_back(lastRing.at(lastRing.size()-1)); // corresponding point on last ring
+            newTree.modelHighLODVerts.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(0.0f,1.0f), lastRing.at(0).normCoords)); // start on last ring
+        }
 
 
     }else{
