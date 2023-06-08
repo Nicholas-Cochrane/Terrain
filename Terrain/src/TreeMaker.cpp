@@ -52,82 +52,10 @@ glm::mat3 TreeMaker::rotateToVec(const glm::vec3 target)
 }
 
 
-void TreeMaker::createTreeMesh(treeModel& newTree)
+void TreeMaker::createMeshFromRings(std::vector<Trees::Vertex>& currRing, std::vector<Trees::Vertex>& lastRing, std::vector<Trees::Vertex>& mesh, bool inverted)
 {
-    std::size_t currNodeIndex(0);
-    treeNode &rootNode = newTree.branchTree.at(currNodeIndex);
-    std::vector<std::vector<Vertex>> rings;
-    rings.resize(newTree.branchTree.size());
-    std::vector<Vertex> &rootRing = rings.at(currNodeIndex);
-    unsigned int points = 9; ///TODO ADD LOGIC
-    float angle = (M_PI*2.0f)/static_cast<float>(points); // in radians
-    glm::vec3 groundSpike{0.0f, 1.0f, 0.0f}; // spike into ground to hide possible floating on hills
-    Vertex groundSpikeVertex(glm::vec3(0.0f, -1.0f, 0.0f), glm::vec2(0.5f, -1.0f), glm::normalize(glm::vec3(0.0f, -1.0f, 0.0f)));
-
-    //push first point
-    rootRing.push_back(Vertex(
-                            glm::vec3(rootNode.radius * std::sin(0.0f), 0.0f, rootNode.radius * std::cos(0.0f)), // position
-                            glm::vec2(0.0f, 0.0f), //texture
-                            glm::normalize(glm::vec3((rootNode.radius+1.0f) * std::sin(0.0f), 0.0f, (rootNode.radius+1.0f) * std::cos(0.0f)) - glm::vec3(rootNode.radius * std::sin(0.0f), 0.0f, rootNode.radius * std::cos(0.0f))))); // normal
-
-    for(float fPoint = 1.0f; fPoint < static_cast<float>(points); fPoint += 1.0f){
-        rootRing.push_back(Vertex(
-                                glm::vec3(rootNode.radius * std::sin(angle * fPoint), 0.0f, rootNode.radius * std::cos(angle * fPoint)), //position
-                                glm::vec2(1.0f/static_cast<float>(points) * fPoint, 0.0f),  //texture
-                                glm::normalize( //normal
-                                               glm::vec3((rootNode.radius+1.0f) * std::sin(angle * fPoint), 0.0f, (rootNode.radius+1.0f) * std::cos(angle * fPoint))
-                                               - glm::vec3(rootNode.radius * std::sin(angle * fPoint), 0.0f, rootNode.radius * std::cos(angle * fPoint)))));
-
-        // create ground end cap/spike (clockwise order)
-        newTree.modelHighLODVerts.push_back(rootRing.at(rootRing.size()-2)); // previous point
-        newTree.modelHighLODVerts.push_back(groundSpikeVertex);
-        newTree.modelHighLODVerts.push_back(rootRing.at(rootRing.size()-1)); // current point
-    }
-    newTree.modelHighLODVerts.push_back(rootRing.at(rootRing.size()-1)); // previous point
-    newTree.modelHighLODVerts.push_back(groundSpikeVertex);
-    newTree.modelHighLODVerts.push_back(Vertex(rootRing.at(0).posCoords, glm::vec2(1.0f,0.0f), rootRing.at(0).normCoords)); // back to start
-
-
-    if(rootNode.children.empty()){
-        throw std::invalid_argument( "TreeModel root had no children"); // if only root node, then no tree
-
-    }else if(rootNode.children.size() == 1){
-        std::vector<Vertex> &lastRing = rings.at(currNodeIndex);
-        treeNode &lastNode = newTree.branchTree.at(currNodeIndex);
-
-        currNodeIndex = lastNode.children.front();
-        std::vector<Vertex> &currRing = rings.at(currNodeIndex);
-        treeNode &currNode = newTree.branchTree.at(currNodeIndex);
-
-        ///TODO ADD LOGIC
-        points = 29;
-        float angle = (M_PI*2.0f)/static_cast<float>(points); // in radians
-
-        //First ring point [0]
-        glm::mat3 rotationMatrix = rotateToVec(lastNode.nodeCoords-currNode.nodeCoords);
-        glm::vec3 ringPoint = (glm::vec3(currNode.radius * std::sin(0.0f), 0.0f, currNode.radius * std::cos(0.0f)) + currNode.nodeCoords) * rotationMatrix;
-        //Expand ring by one unit to find normal vector;
-        glm::vec3 ringPointExpanded = (glm::vec3((currNode.radius+1.0f) * std::sin(0.0f), 0.0f, (currNode.radius+1.0f) * std::cos(0.0f)) + currNode.nodeCoords) * rotationMatrix;
-        currRing.push_back(Vertex(
-                                ringPoint,                                      //Position
-                                glm::vec2(0.0f,1.0f),                             //Texture
-                                glm::normalize(ringPointExpanded-ringPoint)));  //Normal
-
-        //Second point [1] to final point [n-1]
-        for(float fPoint = 1.0f; fPoint < static_cast<float>(points); fPoint += 1.0f){
-            glm::mat3 rotationMatrix = rotateToVec(lastNode.nodeCoords-currNode.nodeCoords);
-            glm::vec3 ringPoint = (glm::vec3(currNode.radius * std::sin(angle * fPoint), 0.0f, currNode.radius * std::cos(angle * fPoint)) + currNode.nodeCoords) * rotationMatrix;
-            //Expand ring by one unit to find normal vector;
-            glm::vec3 ringPointExpanded = (glm::vec3((currNode.radius+1.0f) * std::sin(angle * fPoint), 0.0f, (currNode.radius+1.0f) * std::cos(angle * fPoint)) + currNode.nodeCoords) * rotationMatrix;
-            currRing.push_back(Vertex(
-                                    ringPoint,                                                  //Position
-                                    glm::vec2(1.0f/static_cast<float>(points) * fPoint, 1.0f),  //Texture
-                                    glm::normalize(ringPointExpanded-ringPoint)));              //Normal
-
-        }
-
-        //Create mesh from rings (clockwise order)
-        if(currRing.size() != lastRing.size()){
+    //Create mesh from rings (clockwise order)
+    if(currRing.size() != lastRing.size()){
             if(currRing.size() > lastRing.size()){
                 std::size_t quotient = currRing.size()/lastRing.size();
                 std::vector<std::size_t> numberOfTris(lastRing.size(), quotient); //lastRing(smaller ring) --> currRing(bigger ring)
@@ -155,19 +83,32 @@ void TreeMaker::createTreeMesh(treeModel& newTree)
 
 
                 //for edge tex wrap case
-                newTree.modelHighLODVerts.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); // start point on last ring (small)
-                newTree.modelHighLODVerts.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,1.0f), currRing.at(0).normCoords)); // start point on curr ring (large)
-                newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-1)); // end point on curr ring (large)
+                if(!inverted){
+                    mesh.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); // start point on last ring (small)
+                    mesh.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,1.0f), currRing.at(0).normCoords)); // start point on curr ring (large)
+                    mesh.push_back(currRing.at(currRing.size()-1)); // end point on curr ring (large)
+                }else{
+                    mesh.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,1.0f), lastRing.at(0).normCoords)); // start point on last ring (small)
+                    mesh.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,0.0f), currRing.at(0).normCoords)); // start point on curr ring (large)
+                    mesh.push_back(currRing.at(currRing.size()-1)); // end point on curr ring (large)
+                }
 
                 size_t postAdd = 0; // how many points to go from 0 forwards
                 size_t preAdd = 0; // how many points to go from 0 backwards
                 size_t currLargeRingPoint = 0;
                 if(numberOfTris.at(0) <= 3){ // is 1,2 or 3 points
-                    newTree.modelHighLODVerts.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); //start point on last ring (small)
-                    newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-1)); // end point on curr ring (large)
-                    newTree.modelHighLODVerts.push_back(lastRing.at(lastRing.size()-1)); // corresponding point on last ring (small)
+                    if(!inverted){
+                        mesh.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); //start point on last ring (small)
+                        mesh.push_back(currRing.at(currRing.size()-1)); // end point on curr ring (large)
+                        mesh.push_back(lastRing.at(lastRing.size()-1)); // corresponding point on last ring (small)
+                    }else{
+                        mesh.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,1.0f), lastRing.at(0).normCoords)); //start point on last ring (small)
+                        mesh.push_back(currRing.at(currRing.size()-1)); // end point on curr ring (large)
+                        mesh.push_back(lastRing.at(lastRing.size()-1)); // corresponding point on last ring (small)
+                    }
                     if(numberOfTris.at(0) != 1){
                         postAdd = numberOfTris.at(0)-1;
+                        currLargeRingPoint = postAdd;
                     }
                 }else{
                     if(numberOfTris.at(0)%2 == 0){ // if even
@@ -184,69 +125,257 @@ void TreeMaker::createTreeMesh(treeModel& newTree)
                 //preAdd (goes to texture.x = 1)
                 //Pre add must connect to smallring n-1 on farthest point
                 if(preAdd > 0){
-                    newTree.modelHighLODVerts.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); //start point on last ring (small)
-                    newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-preAdd)); // end point on curr ring (large)
-                    newTree.modelHighLODVerts.push_back(lastRing.at(lastRing.size()-1)); // previous point on last ring (small)
+                    mesh.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); //start point on last ring (small)
+                    mesh.push_back(currRing.at(currRing.size()-preAdd)); // end point on curr ring (large)
+                    mesh.push_back(lastRing.at(lastRing.size()-1)); // previous point on last ring (small)
                     preAdd--;
                 }
                 for(;preAdd > 0; preAdd--){
-                    newTree.modelHighLODVerts.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); //start point on last ring (small)
-                    newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-preAdd));
-                    newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-(preAdd+1)));
+                    mesh.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); //start point on last ring (small)
+                    mesh.push_back(currRing.at(currRing.size()-preAdd));
+                    mesh.push_back(currRing.at(currRing.size()-(preAdd+1)));
                 }
 
                 //postAdd(comes from texture.x = 0)
                 for(;postAdd > 0; postAdd--){
-                    newTree.modelHighLODVerts.push_back(lastRing.at(0)); //start point on last ring (small)
-                    newTree.modelHighLODVerts.push_back(currRing.at(postAdd));
-                    newTree.modelHighLODVerts.push_back(currRing.at(postAdd-1));
+                    mesh.push_back(lastRing.at(0)); //start point on last ring (small)
+                    mesh.push_back(currRing.at(postAdd));
+                    mesh.push_back(currRing.at(postAdd-1));
                 }
 
                 //smallring points from [1] to [n]
                 for(std::size_t point = 1; point < lastRing.size(); point++){
                     size_t targetPoint = currLargeRingPoint + numberOfTris.at(point);
                     //connect to last point
-                    newTree.modelHighLODVerts.push_back(lastRing.at(point)); //current point on last ring (small)
-                    newTree.modelHighLODVerts.push_back(currRing.at(currLargeRingPoint)); //last point used on larger ring
-                    newTree.modelHighLODVerts.push_back(lastRing.at(point-1)); //last point on last ring (small)
+                    mesh.push_back(lastRing.at(point)); //current point on last ring (small)
+                    mesh.push_back(currRing.at(currLargeRingPoint)); //last point used on larger ring
+                    mesh.push_back(lastRing.at(point-1)); //last point on last ring (small)
                     currLargeRingPoint++;
 
                     for(;currLargeRingPoint < targetPoint; currLargeRingPoint++){
-                        newTree.modelHighLODVerts.push_back(lastRing.at(point)); //current point on last ring (small)
-                        newTree.modelHighLODVerts.push_back(currRing.at(currLargeRingPoint)); //large ring
-                        newTree.modelHighLODVerts.push_back(currRing.at(currLargeRingPoint-1)); //large ring
+                        mesh.push_back(lastRing.at(point)); //current point on last ring (small)
+                        mesh.push_back(currRing.at(currLargeRingPoint)); //large ring
+                        mesh.push_back(currRing.at(currLargeRingPoint-1)); //large ring
                     }
                     //complete final tri with out incrementing currLargeRingPoint
-                    newTree.modelHighLODVerts.push_back(lastRing.at(point)); //current point on last ring (small)
-                    newTree.modelHighLODVerts.push_back(currRing.at(currLargeRingPoint)); //large ring
-                    newTree.modelHighLODVerts.push_back(currRing.at(currLargeRingPoint-1)); //large ring
+                    mesh.push_back(lastRing.at(point)); //current point on last ring (small)
+                    mesh.push_back(currRing.at(currLargeRingPoint)); //large ring
+                    mesh.push_back(currRing.at(currLargeRingPoint-1)); //large ring
                 }
             }else{
                 ///TODO currRing --> lastRing
-                ///TODO make non equal mesh currRing --> lastRing
+                std::size_t quotient = lastRing.size()/currRing.size();
+                std::vector<std::size_t> numberOfTris(currRing.size(), quotient); //currRing(smaller ring) --> lastRing(bigger ring)
+                std::size_t unallocatedTris = lastRing.size() - (currRing.size()*quotient);
+                if(unallocatedTris != 0){
+                    std::size_t gapSize = currRing.size()/unallocatedTris;
+                    float gapFloat= static_cast<float>(currRing.size())/static_cast<float>(unallocatedTris);
+
+                    std::size_t i = 0;
+                    while(i < currRing.size() && unallocatedTris > 0){
+                        if((static_cast<float>(currRing.size()-i)/static_cast<float>(unallocatedTris)) > gapFloat){
+                            i +=1;
+                        }
+                        numberOfTris.at(i) += 1;
+                        i += gapSize;
+                        unallocatedTris--;
+                    }
+                }
+                int total = 0;
+                for(auto &elem: numberOfTris){
+                    std::cout << elem << ", ";
+                    total += elem;
+                }
+                std::cout << total <<std::endl;
+
+
+                //for edge tex wrap case
+                if(!inverted){
+                    mesh.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,1.0f), currRing.at(0).normCoords)); // start point on curr ring (small)
+                    mesh.push_back(lastRing.at(lastRing.size()-1)); // end point on last ring (large)
+                    mesh.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); // start point on last ring (large)
+                }else{
+                    mesh.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,0.0f), currRing.at(0).normCoords)); // start point on curr ring (small)
+                    mesh.push_back(lastRing.at(lastRing.size()-1)); // end point on last ring (large)
+                    mesh.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,1.0f), lastRing.at(0).normCoords)); // start point on last ring (large)
+                }
+
+                size_t postAdd = 0; // how many points to go from 0 forwards
+                size_t preAdd = 0; // how many points to go from 0 backwards
+                size_t lastLargeRingPoint = 0;
+                if(numberOfTris.at(0) <= 3){ // is 1,2 or 3 points
+                    if(!inverted){
+                        mesh.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,1.0f), currRing.at(0).normCoords)); //start point on curr ring (small)
+                        mesh.push_back(currRing.at(currRing.size()-1)); // corresponding point on curr ring (small)
+                        mesh.push_back(lastRing.at(lastRing.size()-1)); // end point on last ring (large)
+                    }else{
+                        mesh.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,0.0f), currRing.at(0).normCoords)); //start point on curr ring (small)
+                        mesh.push_back(currRing.at(currRing.size()-1)); // corresponding point on curr ring (small)
+                        mesh.push_back(lastRing.at(lastRing.size()-1)); // end point on last ring (large)
+                    }
+
+                    if(numberOfTris.at(0) != 1){
+                        postAdd = numberOfTris.at(0)-1;
+                        lastLargeRingPoint = postAdd;
+                    }
+                }else{
+                    if(numberOfTris.at(0)%2 == 0){ // if even
+                        preAdd = numberOfTris.at(0)/2;
+                        postAdd = preAdd;
+                        lastLargeRingPoint = postAdd;
+                    }else{
+                        preAdd = (numberOfTris.at(0)-1)/2;
+                        postAdd = preAdd +1;
+                        lastLargeRingPoint = postAdd;
+                    }
+                }
+
+                //preAdd (goes to texture.x = 1)
+                //Pre add must connect to smallring n-1 on farthest point
+                if(preAdd > 0){
+                    mesh.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,0.0f), currRing.at(0).normCoords)); //start point on curr ring (small)
+                    mesh.push_back(currRing.at(currRing.size()-1)); // previous point on curr ring (small)
+                    mesh.push_back(lastRing.at(lastRing.size()-preAdd)); // end point on last ring (large)
+                    preAdd--;
+                }
+                for(;preAdd > 0; preAdd--){
+                    mesh.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,0.0f), currRing.at(0).normCoords)); //start point on curr ring (small)
+                    mesh.push_back(lastRing.at(lastRing.size()-(preAdd+1)));
+                    mesh.push_back(lastRing.at(lastRing.size()-preAdd));
+                }
+
+                //postAdd(comes from texture.x = 0)
+                for(;postAdd > 0; postAdd--){
+                    mesh.push_back(currRing.at(0)); //start point on curr ring (small)
+                    mesh.push_back(lastRing.at(postAdd-1));
+                    mesh.push_back(lastRing.at(postAdd));
+                }
+
+                //smallring points from [1] to [n]
+                for(std::size_t point = 1; point < currRing.size(); point++){
+                    size_t targetPoint = lastLargeRingPoint + numberOfTris.at(point);
+                    //connect to curr point
+                    mesh.push_back(currRing.at(point)); //lastent point on curr ring (small)
+                    mesh.push_back(currRing.at(point-1)); //curr point on curr ring (small)
+                    mesh.push_back(lastRing.at(lastLargeRingPoint)); //curr point used on larger ring
+                    lastLargeRingPoint++;
+
+                    for(;lastLargeRingPoint < targetPoint; lastLargeRingPoint++){
+                        mesh.push_back(currRing.at(point)); //lastent point on curr ring (small)
+                        mesh.push_back(lastRing.at(lastLargeRingPoint-1)); //large ring
+                        mesh.push_back(lastRing.at(lastLargeRingPoint)); //large ring
+                    }
+                    //complete final tri with out incrementing lastLargeRingPoint
+                    mesh.push_back(currRing.at(point)); //lastent point on curr ring (small)
+                    mesh.push_back(lastRing.at(lastLargeRingPoint-1)); //large ring
+                    mesh.push_back(lastRing.at(lastLargeRingPoint)); //large ring
+                }
             }
 
         }else{
             // each point in the current ring corresponds to a point in the last ring
             for(std::size_t i = 1; i < currRing.size(); i++){
-                newTree.modelHighLODVerts.push_back(currRing.at(i-1)); // previous point
-                newTree.modelHighLODVerts.push_back(lastRing.at(i-1)); // corresponding point on last ring
-                newTree.modelHighLODVerts.push_back(currRing.at(i)); // current point
+                mesh.push_back(currRing.at(i-1)); // previous point
+                mesh.push_back(lastRing.at(i-1)); // corresponding point on last ring
+                mesh.push_back(currRing.at(i)); // current point
 
-                newTree.modelHighLODVerts.push_back(currRing.at(i)); // current point
-                newTree.modelHighLODVerts.push_back(lastRing.at(i-1)); // prev point on last ring
-                newTree.modelHighLODVerts.push_back(lastRing.at(i)); // corresponding point on last ring
+                mesh.push_back(currRing.at(i)); // current point
+                mesh.push_back(lastRing.at(i-1)); // prev point on last ring
+                mesh.push_back(lastRing.at(i)); // corresponding point on last ring
             }
-            newTree.modelHighLODVerts.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,1.0f), currRing.at(0).normCoords)); // start
-            newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-1)); // current point
-            newTree.modelHighLODVerts.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); // start point on last ring
+            if(!inverted){
+                mesh.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,1.0f), currRing.at(0).normCoords)); // start
+                mesh.push_back(currRing.at(currRing.size()-1)); // current point
+                mesh.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); // start point on last ring
+
+                mesh.push_back(currRing.at(currRing.size()-1)); // current point
+                mesh.push_back(lastRing.at(lastRing.size()-1)); // corresponding point on last ring
+                mesh.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); // start on last ring
+            }else{
+                mesh.push_back(Vertex(currRing.at(0).posCoords, glm::vec2(1.0f,0.0f), currRing.at(0).normCoords)); // start
+                mesh.push_back(currRing.at(currRing.size()-1)); // current point
+                mesh.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,1.0f), lastRing.at(0).normCoords)); // start point on last ring
+
+                mesh.push_back(currRing.at(currRing.size()-1)); // current point
+                mesh.push_back(lastRing.at(lastRing.size()-1)); // corresponding point on last ring
+                mesh.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,1.0f), lastRing.at(0).normCoords)); // start on last ring
+            }
+        }
+}
 
 
-            newTree.modelHighLODVerts.push_back(currRing.at(currRing.size()-1)); // current point
-            newTree.modelHighLODVerts.push_back(lastRing.at(lastRing.size()-1)); // corresponding point on last ring
-            newTree.modelHighLODVerts.push_back(Vertex(lastRing.at(0).posCoords, glm::vec2(1.0f,0.0f), lastRing.at(0).normCoords)); // start on last ring
+void TreeMaker::createTreeMesh(treeModel& newTree)
+{
+    std::size_t currNodeIndex(0);
+    treeNode &rootNode = newTree.branchTree.at(currNodeIndex);
+    std::vector<std::vector<Vertex>> rings;
+    rings.resize(newTree.branchTree.size());
+    std::vector<Vertex> &rootRing = rings.at(currNodeIndex);
+    unsigned int points = 2; ///TODO ADD LOGIC
+    float angle = (M_PI*2.0f)/static_cast<float>(points); // in radians
+
+    //push first point
+    rootRing.push_back(Vertex(
+                            glm::vec3(rootNode.radius * std::sin(0.0f), 0.0f, rootNode.radius * std::cos(0.0f)), // position
+                            glm::vec2(0.0f, 0.0f), //texture
+                            glm::normalize(glm::vec3((rootNode.radius+1.0f) * std::sin(0.0f), 0.0f, (rootNode.radius+1.0f) * std::cos(0.0f)) - glm::vec3(rootNode.radius * std::sin(0.0f), 0.0f, rootNode.radius * std::cos(0.0f))))); // normal
+
+    for(float fPoint = 1.0f; fPoint < static_cast<float>(points); fPoint += 1.0f){
+        rootRing.push_back(Vertex(
+                                glm::vec3(rootNode.radius * std::sin(angle * fPoint), 0.0f, rootNode.radius * std::cos(angle * fPoint)), //position
+                                glm::vec2(1.0f/static_cast<float>(points) * fPoint, 0.0f),  //texture
+                                glm::normalize( //normal
+                                               glm::vec3((rootNode.radius+1.0f) * std::sin(angle * fPoint), 0.0f, (rootNode.radius+1.0f) * std::cos(angle * fPoint))
+                                               - glm::vec3(rootNode.radius * std::sin(angle * fPoint), 0.0f, rootNode.radius * std::cos(angle * fPoint)))));
+
+
+    }
+
+
+    if(rootNode.children.empty()){
+        throw std::invalid_argument( "TreeModel root had no children"); // if only root node, then no tree
+
+    }else if(rootNode.children.size() == 1){
+        std::vector<Vertex> &lastRing = rings.at(currNodeIndex);
+        treeNode &lastNode = newTree.branchTree.at(currNodeIndex);
+
+        currNodeIndex = lastNode.children.front();
+        std::vector<Vertex> &currRing = rings.at(currNodeIndex);
+        treeNode &currNode = newTree.branchTree.at(currNodeIndex);
+
+        ///TODO ADD LOGIC
+        points = 10;
+        float angle = (M_PI*2.0f)/static_cast<float>(points); // in radians
+
+        //First ring point [0]
+        glm::mat3 rotationMatrix = rotateToVec(lastNode.nodeCoords-currNode.nodeCoords);
+        glm::vec3 ringPoint = (glm::vec3(currNode.radius * std::sin(0.0f), 0.0f, currNode.radius * std::cos(0.0f)) + currNode.nodeCoords) * rotationMatrix;
+        //Expand ring by one unit to find normal vector;
+        glm::vec3 ringPointExpanded = (glm::vec3((currNode.radius+1.0f) * std::sin(0.0f), 0.0f, (currNode.radius+1.0f) * std::cos(0.0f)) + currNode.nodeCoords) * rotationMatrix;
+        currRing.push_back(Vertex(
+                                ringPoint,                                      //Position
+                                glm::vec2(0.0f,1.0f),                             //Texture
+                                glm::normalize(ringPointExpanded-ringPoint)));  //Normal
+
+        //Second point [1] to final point [n-1]
+        for(float fPoint = 1.0f; fPoint < static_cast<float>(points); fPoint += 1.0f){
+            glm::mat3 rotationMatrix = rotateToVec(lastNode.nodeCoords-currNode.nodeCoords);
+            glm::vec3 ringPoint = (glm::vec3(currNode.radius * std::sin(angle * fPoint), 0.0f, currNode.radius * std::cos(angle * fPoint)) + currNode.nodeCoords) * rotationMatrix;
+            //Expand ring by one unit to find normal vector;
+            glm::vec3 ringPointExpanded = (glm::vec3((currNode.radius+1.0f) * std::sin(angle * fPoint), 0.0f, (currNode.radius+1.0f) * std::cos(angle * fPoint)) + currNode.nodeCoords) * rotationMatrix;
+            currRing.push_back(Vertex(
+                                    ringPoint,                                                  //Position
+                                    glm::vec2(1.0f/static_cast<float>(points) * fPoint, 1.0f),  //Texture
+                                    glm::normalize(ringPointExpanded-ringPoint)));              //Normal
+
         }
 
+        //Create mesh from rings
+        if(currNode.nodeCoords.y > lastNode.nodeCoords.y){
+            createMeshFromRings(currRing,lastRing,newTree.modelHighLODVerts,0);
+        }else{
+            createMeshFromRings(lastRing,currRing,newTree.modelHighLODVerts,1);
+        }
 
     }else{
     ///nextnode(s)

@@ -59,6 +59,7 @@ class TreeMaker
 
     private:
         void createTreeMesh(treeModel &newTree);
+        void createMeshFromRings(std::vector<Trees::Vertex> &currRing, std::vector<Trees::Vertex> &lastRing, std::vector<Trees::Vertex> &mesh, bool inverted);
         glm::mat3 rotateToVec(const glm::vec3 target);
 };
 
