@@ -28,7 +28,9 @@ namespace Trees{
         treeNode() : nodeCoords{0.0f, 0.0f, 0.0f}, radius(0.0f) {};
         glm::vec3 nodeCoords;
         float radius;
+        glm::mat3 rotationMatrix;
         std::vector<size_t> children;
+        std::vector<size_t> minorChildren;
     };
 
     struct treeModel
@@ -59,7 +61,7 @@ class TreeMaker
 
     private:
         void createTreeMesh(treeModel &newTree);
-        void createMeshFromRings(std::vector<Trees::Vertex> &currRing, std::vector<Trees::Vertex> &lastRing, std::vector<Trees::Vertex> &mesh, bool inverted);
+        void createMeshFromRings(std::vector<Trees::Vertex> &currRing, std::vector<Trees::Vertex> &lastRing, std::vector<Trees::Vertex> &mesh, float currTexY, float lastTexY);
         glm::mat3 rotateToVec(const glm::vec3 target);
 };
 

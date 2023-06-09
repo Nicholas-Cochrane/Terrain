@@ -202,6 +202,7 @@ int main()
 
     // Set up variables for various shaders and such
     float nearPlane = 0.38f;
+    nearPlane = 0.1f; ///TODO REMOVE/ CHANGE WHEN NEAR OBJECTS
     float farPlane = 25000.0f;
     float screenQuadVerts[] = {
     -1.0f, -1.0f, 0.0f,
@@ -231,7 +232,7 @@ int main()
 
     // Texture setup and loading
     //---------------------------
-    unsigned int texture1 = loadTexture("textures/wrapTest.png", GL_RGB, GL_CLAMP_TO_EDGE);
+    unsigned int texture1 = loadTexture("textures/wrapTest.png", GL_RGB,  GL_REPEAT);
     //unsigned int heightMap = loadTexture("textures/0.01344305976942091 (4130) (110km) square.png", GL_RGBA, GL_CLAMP_TO_EDGE);
     unsigned int playerIcon = loadTexture("textures/map arrow.png", GL_RGBA, GL_CLAMP_TO_EDGE);
 
